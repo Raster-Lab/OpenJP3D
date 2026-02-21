@@ -12,6 +12,8 @@ compression (ISO/IEC 15444-10), built as an extension of the
 - Optional HTJ2K high-throughput block coding (JPEG 2000 Part 15)
 - JPIP interactive streaming for volumetric data (JPEG 2000 Part 9)
 - SIMD-optimised paths for x86-64 (SSE4.1/AVX2) and AArch64 (NEON)
+- Command-line tools: `opj_jp3d_compress`, `opj_jp3d_decompress`,
+  `opj_jp3d_dump`, `opj_jp3d_transcode`, `opj_jpip3d_server`
 
 ## Building
 
@@ -25,8 +27,19 @@ See [INSTALL.md](INSTALL.md) for detailed build instructions and options.
 
 ## Project Status
 
-OpenJP3D is under active development. See [milestone.md](milestone.md) for the
-implementation plan.
+OpenJP3D is under active development. The following phases are complete:
+
+- **Phase 0** — Project Bootstrapping ✅
+- **Phase 1** — Core JP3D Codec (Lossless & Lossy) ✅
+- **Phase 2** — HTJ2K Integration (Part 15) ✅
+- **Phase 3** — JPIP Extension for JP3D (Part 9) ✅
+- **Phase 4** — SIMD Optimisation ✅
+- **Phase 5** — Command-Line Tools ✅
+- **Phase 6** — Documentation & Examples *(in progress)*
+- **Phase 7** — Integration Testing & Release *(planned)*
+
+See [milestone.md](milestone.md) for the full implementation plan and
+[CHANGELOG.md](CHANGELOG.md) for detailed change history.
 
 ## Licence
 

@@ -19,7 +19,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 0 — Project Bootstrapping
+## Phase 0 — Project Bootstrapping ✅ Complete
 
 **Goal:** Establish repository structure, build infrastructure, CI, and coding standards.
 
@@ -43,7 +43,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 1 — Core JP3D Codec (Lossless & Lossy)
+## Phase 1 — Core JP3D Codec (Lossless & Lossy) ✅ Complete
 
 **Goal:** Implement the JP3D encoder and decoder supporting both lossless and lossy modes.
 
@@ -93,7 +93,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 2 — HTJ2K Integration (Part 15 in JP3D)
+## Phase 2 — HTJ2K Integration (Part 15 in JP3D) ✅ Complete
 
 **Goal:** Provide an optional high-throughput block coder for JP3D, modelled on JPEG 2000 Part 15 (HTJ2K / ISO/IEC 15444-15).
 
@@ -115,7 +115,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 3 — JPIP Extension for JP3D (Part 9)
+## Phase 3 — JPIP Extension for JP3D (Part 9) ✅ Complete
 
 **Goal:** Extend OpenJPEG's JPIP (Part 9) server and client infrastructure to support interactive streaming of JP3D volumetric datasets.
 
@@ -138,7 +138,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 4 — SIMD Optimisation
+## Phase 4 — SIMD Optimisation ✅ Complete
 
 **Goal:** Accelerate critical paths using SIMD intrinsics on all target architectures.
 
@@ -162,7 +162,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 5 — Command-Line Tools
+## Phase 5 — Command-Line Tools ✅ Complete
 
 **Goal:** Provide CLI tools for encoding, decoding, inspection, and benchmarking of JP3D volumes.
 
