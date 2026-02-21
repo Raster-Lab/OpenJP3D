@@ -125,7 +125,89 @@ typedef void (*opj_jp3d_msg_callback_t)(opj_jp3d_msg_level_t level,
 
 /*
  * ==========================================================================
- *   Forward declarations (Phase 1 will define these fully)
+ *   Filter and colour-space constants
+ * ==========================================================================
+ */
+
+/** @brief Lossless 5/3 integer lifting filter. */
+#define OPJ_JP3D_FILTER_53  0
+/** @brief Lossy 9/7 floating-point lifting filter. */
+#define OPJ_JP3D_FILTER_97  1
+
+/** @brief Unknown colour space. */
+#define OPJ_JP3D_CS_UNKNOWN 0
+/** @brief sRGB. */
+#define OPJ_JP3D_CS_SRGB    1
+/** @brief Greyscale. */
+#define OPJ_JP3D_CS_GRAY    2
+/** @brief YCbCr (YUV). */
+#define OPJ_JP3D_CS_YUV     3
+
+/*
+ * ==========================================================================
+ *   Volume data structures
+ * ==========================================================================
+ */
+
+/**
+ * @brief A single component (channel) of a 3-D volume.
+ */
+typedef struct opj_volume_comp {
+    uint32_t  w;      /**< Width  (X samples). */
+    uint32_t  h;      /**< Height (Y samples). */
+    uint32_t  d;      /**< Depth  (Z samples). */
+    uint32_t  prec;   /**< Bit depth per sample. */
+    int32_t   sgnd;   /**< 1 = signed, 0 = unsigned. */
+    float     dz;     /**< Voxel spacing in Z (1.0 = isotropic). */
+    int32_t  *data;   /**< Samples: data[z*w*h + y*w + x]. */
+} opj_volume_comp_t;
+
+/**
+ * @brief A 3-D image volume (possibly multi-component).
+ */
+typedef struct opj_volume {
+    uint32_t            numcomps;   /**< Number of components. */
+    opj_volume_comp_t  *comps;      /**< Component array. */
+    uint32_t            x0, y0, z0; /**< Volume origin. */
+    uint32_t            x1, y1, z1; /**< Volume extent (exclusive). */
+    uint32_t            color_space; /**< OPJ_JP3D_CS_* constant. */
+} opj_volume_t;
+
+/*
+ * ==========================================================================
+ *   Codec parameter structures
+ * ==========================================================================
+ */
+
+/**
+ * @brief Encoder parameters for opj_jp3d_encode().
+ */
+typedef struct opj_jp3d_enc_params {
+    uint32_t tile_width;           /**< Tile width  (0 = whole image). */
+    uint32_t tile_height;          /**< Tile height (0 = whole image). */
+    uint32_t tile_depth;           /**< Tile depth  (0 = whole image). */
+    uint32_t num_resolutions_x;    /**< DWT levels along X. */
+    uint32_t num_resolutions_y;    /**< DWT levels along Y. */
+    uint32_t num_resolutions_z;    /**< DWT levels along Z. */
+    uint32_t cblk_width;           /**< Code-block width. */
+    uint32_t cblk_height;          /**< Code-block height. */
+    uint32_t cblk_depth;           /**< Code-block depth. */
+    int32_t  filter;               /**< OPJ_JP3D_FILTER_53 or _97. */
+    uint32_t num_layers;           /**< Number of quality layers. */
+    float    target_rate;          /**< Target bits/sample (0 = lossless). */
+    int32_t  verbose;              /**< Non-zero = enable info messages. */
+} opj_jp3d_enc_params_t;
+
+/**
+ * @brief Decoder parameters for opj_jp3d_decode().
+ */
+typedef struct opj_jp3d_dec_params {
+    int32_t verbose; /**< Non-zero = enable info messages. */
+} opj_jp3d_dec_params_t;
+
+/*
+ * ==========================================================================
+ *   Forward declarations
  * ==========================================================================
  */
 
@@ -144,6 +226,102 @@ typedef struct opj_jp3d_codec opj_jp3d_codec_t;
  * @return Null-terminated version string (e.g. "0.1.0").
  */
 OPJ_JP3D_API const char *opj_jp3d_get_version(void);
+
+/*
+ * ==========================================================================
+ *   Memory management
+ * ==========================================================================
+ */
+
+/** @brief Allocate @p size bytes; returns NULL on failure. */
+OPJ_JP3D_API void *opj_jp3d_malloc(size_t size);
+/** @brief Allocate @p n * @p size zeroed bytes; returns NULL on failure. */
+OPJ_JP3D_API void *opj_jp3d_calloc(size_t n, size_t size);
+/** @brief Resize allocation; returns NULL on failure. */
+OPJ_JP3D_API void *opj_jp3d_realloc(void *ptr, size_t size);
+/** @brief Free memory allocated by the opj_jp3d_malloc family. */
+OPJ_JP3D_API void  opj_jp3d_free(void *ptr);
+
+/*
+ * ==========================================================================
+ *   Volume lifecycle
+ * ==========================================================================
+ */
+
+/**
+ * @brief Create a new volume with @p numcomps components.
+ *
+ * All components share the same dimensions (@p w, @p h, @p d),
+ * bit depth (@p prec), and signed flag (@p sgnd).
+ *
+ * @return Pointer to the new volume, or NULL on allocation failure.
+ */
+OPJ_JP3D_API opj_volume_t *opj_jp3d_create_volume(
+    uint32_t numcomps,
+    uint32_t w, uint32_t h, uint32_t d,
+    uint32_t prec, int32_t sgnd);
+
+/** @brief Free a volume and all its component data. */
+OPJ_JP3D_API void opj_jp3d_destroy_volume(opj_volume_t *vol);
+
+/*
+ * ==========================================================================
+ *   Parameter initialisation
+ * ==========================================================================
+ */
+
+/** @brief Fill @p params with safe default encoder settings. */
+OPJ_JP3D_API void opj_jp3d_set_default_encoder_parameters(
+    opj_jp3d_enc_params_t *params);
+
+/** @brief Fill @p params with safe default decoder settings. */
+OPJ_JP3D_API void opj_jp3d_set_default_decoder_parameters(
+    opj_jp3d_dec_params_t *params);
+
+/*
+ * ==========================================================================
+ *   Codec
+ * ==========================================================================
+ */
+
+/**
+ * @brief Encode a volume to a JP3D codestream.
+ *
+ * The caller must free @p *out_data with opj_jp3d_free() when done.
+ *
+ * @param volume        Input volume.
+ * @param params        Encoder parameters.
+ * @param out_data      Output: pointer to allocated codestream bytes.
+ * @param out_size      Output: number of bytes in @p *out_data.
+ * @param callback      Optional message callback (may be NULL).
+ * @param callback_data User data for @p callback.
+ * @return OPJ_JP3D_TRUE on success, OPJ_JP3D_FALSE on failure.
+ */
+OPJ_JP3D_API opj_jp3d_bool_t opj_jp3d_encode(
+    const opj_volume_t          *volume,
+    const opj_jp3d_enc_params_t *params,
+    uint8_t                    **out_data,
+    size_t                      *out_size,
+    opj_jp3d_msg_callback_t      callback,
+    void                        *callback_data);
+
+/**
+ * @brief Decode a JP3D codestream to a volume.
+ *
+ * @param data          Codestream bytes.
+ * @param size          Number of bytes.
+ * @param params        Decoder parameters (may be NULL for defaults).
+ * @param callback      Optional message callback (may be NULL).
+ * @param callback_data User data for @p callback.
+ * @return Pointer to decoded volume, or NULL on failure.
+ *         Caller must free with opj_jp3d_destroy_volume().
+ */
+OPJ_JP3D_API opj_volume_t *opj_jp3d_decode(
+    const uint8_t               *data,
+    size_t                       size,
+    const opj_jp3d_dec_params_t *params,
+    opj_jp3d_msg_callback_t      callback,
+    void                        *callback_data);
 
 #ifdef __cplusplus
 }
