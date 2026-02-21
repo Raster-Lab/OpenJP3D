@@ -48,6 +48,7 @@ extern "C" {
 #include "gui_volume.h"
 #include "gui_codec.h"
 #include "gui_roundtrip.h"
+#include "gui_jpip.h"
 
 /* ================================================================== */
 /*  Log panel ring buffer                                             */
@@ -99,6 +100,9 @@ static GuiCodecState g_codec;
 
 /* Round-trip / diff / batch / inspector state (Phase 8D) */
 static GuiRoundtripState g_rt;
+
+/* JPIP streaming client state (Phase 8E) */
+static GuiJpipState g_jpip;
 
 /* ================================================================== */
 /*  Open-volume dialog state (8B.1)                                   */
@@ -291,6 +295,19 @@ static void draw_menu_bar(void)
             if (ImGui::MenuItem("Codestream Inspector...")) {
                 g_rt.show_inspector = true;
             }
+            ImGui::Separator();
+            if (ImGui::MenuItem("JPIP Connection...", NULL, false,
+                                !g_jpip.fetch_running.load())) {
+                g_jpip.show_connection = true;
+            }
+            if (ImGui::MenuItem("JPIP Browser...", NULL, false,
+                                g_jpip.connected)) {
+                g_jpip.show_browser = true;
+            }
+            if (ImGui::MenuItem("JPIP Diagnostics...", NULL, false,
+                                g_jpip.connected)) {
+                g_jpip.show_diagnostics = true;
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Help")) {
@@ -349,6 +366,12 @@ static void draw_toolbar(void)
         ImGui::SameLine();
         if (ImGui::Button("Inspector")) {
             g_rt.show_inspector = true;
+        }
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+        if (ImGui::Button("JPIP")) {
+            g_jpip.show_connection = true;
         }
         ImGui::SameLine();
 
@@ -758,6 +781,9 @@ int main(int argc, char *argv[])
     /* Initialise round-trip state (Phase 8D) */
     gui_roundtrip_state_init(&g_rt);
 
+    /* Initialise JPIP streaming client state (Phase 8E) */
+    gui_jpip_state_init(&g_jpip);
+
     gui_log(LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
     gui_log(LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
             IMGUI_VERSION, SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
@@ -858,6 +884,9 @@ int main(int argc, char *argv[])
         /* ---- Tick round-trip state (poll background tasks) ---- */
         gui_roundtrip_tick(&g_rt);
 
+        /* ---- Tick JPIP state (poll background fetch) ---- */
+        gui_jpip_tick(&g_jpip);
+
         /* ---- Handle decode result: load into viewer ---- */
         if (g_codec.decode_result && !g_codec.task_running.load()) {
             /* Replace current volume with decoded result */
@@ -903,6 +932,11 @@ int main(int argc, char *argv[])
         gui_roundtrip_draw_batch(&g_rt, &g_vol);
         gui_roundtrip_draw_inspector(&g_rt);
 
+        /* ---- JPIP streaming client panels (Phase 8E) ---- */
+        gui_jpip_draw_connection(&g_jpip);
+        gui_jpip_draw_browser(&g_jpip, &g_vol);
+        gui_jpip_draw_diagnostics(&g_jpip);
+
         /* ---- Render ---- */
         ImGui::Render();
         int display_w, display_h;
@@ -920,6 +954,7 @@ int main(int argc, char *argv[])
     /* -------------------------------------------------------------- */
     /*  Cleanup                                                       */
     /* -------------------------------------------------------------- */
+    gui_jpip_state_free(&g_jpip);
     gui_roundtrip_state_free(&g_rt);
     gui_codec_state_free(&g_codec);
     gui_volume_state_free(&g_vol);

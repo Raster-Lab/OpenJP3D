@@ -90,14 +90,17 @@ add_executable(opj_jp3d_gui
     gui_volume.cpp
     gui_codec.cpp
     gui_roundtrip.cpp
+    gui_jpip.cpp
 )
 
 target_include_directories(opj_jp3d_gui PRIVATE
     ${CMAKE_SOURCE_DIR}/src/lib/openjp3d
+    ${CMAKE_SOURCE_DIR}/src/lib/openjpip3d
 )
 
 target_link_libraries(opj_jp3d_gui PRIVATE
     openjp3d
+    openjpip3d
     imgui_lib
     OpenGL::GL
 )
