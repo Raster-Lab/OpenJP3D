@@ -32,13 +32,13 @@ ctest --test-dir build
 |--------|---------|-------------|
 | `BUILD_JP3D` | ON | Core JP3D codec library |
 | `BUILD_HTJ2K_3D` | OFF | HTJ2K 3-D block coder |
-| `BUILD_JPIP_3D` | OFF | JPIP 3-D streaming library |
+| `BUILD_JPIP_3D` | ON | JPIP 3-D streaming library |
 | `BUILD_CLI_TOOLS` | ON | Command-line utilities |
 | `BUILD_DOC` | OFF | Doxygen API documentation |
 | `BUILD_TESTING` | ON | CTest test suite |
 | `BUILD_SHARED_LIBS` | OFF | Build shared libraries |
 | `ENABLE_OPENMP` | OFF | OpenMP multi-threading |
-| `BUILD_BENCHMARKS` | OFF | DWT benchmark tool |
+| `BUILD_BENCHMARKS` | OFF | Performance benchmark suite |
 
 ### Full-Featured Build
 
@@ -145,7 +145,7 @@ opj_jp3d_compress -i volume.raw -o volume.jp3d \
 | `-t <w,h,d>` | Tile size |
 | `-n <rx,ry,rz>` | Decomposition levels per axis |
 | `-r <rate>` | Target bits/sample (0 = lossless) |
-| `-f 53\|97` | Filter: 53 (lossless) or 97 (lossy) |
+| `-f 53|97` | Filter: 53 (lossless) or 97 (lossy) |
 | `-H2K` | Enable HTJ2K block coder |
 | `-v` | Verbose output |
 
