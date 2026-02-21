@@ -471,6 +471,40 @@ Python, Julia, R, and MATLAB bindings (Phases 9–13).
 
 ---
 
+## Phase 15 — Test Automation (Phases A–D) ✅ Complete
+
+**Goal:** Implement the test automation plan documented in
+[`doc/test-automation-plan.md`](doc/test-automation-plan.md), closing the gap
+between the 107 manual test procedures and automated CI coverage. Phases A–D
+bring automated coverage from 63% to 79%.
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 15.1 | Test data generation (`tests/generate_test_data.py`) | Cross-platform Python script producing 10 deterministic test datasets (TD-001 through TD-010) with fixed seeds for reproducibility. Datasets range from 4×4×4 ramp patterns to 256×256×64 gradient+noise volumes, covering 8-bit/16-bit, signed/unsigned, single-/multi-component layouts. |
+| 15.2 | Error callback test (`test_roundtrip.c`) | `test_error_cb` callback + `error_cb_count`/`error_cb_max_level` globals. Feeds garbage data to `opj_jp3d_decode`, asserts callback was invoked with `OPJ_JP3D_MSG_ERROR` severity. Closes MT-API-009 gap. |
+| 15.3 | Decoder callback wiring (`openjp3d.c`) | Added `DECODE_MSG` macro to `opj_jp3d_decode()` that invokes the user-supplied callback on SOC, SIZ3D, and EOC marker errors plus invalid-input conditions. Previously, the `callback` parameter was accepted but unused. |
+| 15.4 | CLI test extensions (`test_cli.c`) | 5 new test functions: `test_verbose_content` (MT-CLI-011), `test_missing_file` (MT-CLI-014), `test_decompress_version` (MT-CLI-016), `test_dump_version` (MT-CLI-017), `test_transcode_version` (MT-CLI-018). |
+| 15.5 | JPIP server lifecycle test (`test_jpip3d.c`) | `test_server_lifecycle` — full create→load→handle→destroy lifecycle covering MT-JPIP-002. |
+| 15.6 | CI: `build-minimal` job | New GitHub Actions job building the core library with `BUILD_HTJ2K_3D=OFF`, `BUILD_JPIP_3D=OFF`, `BUILD_CLI_TOOLS=OFF`, `BUILD_TESTING=OFF`. Covers MT-BUILD-003. |
+| 15.7 | CI: `packaging` job | New GitHub Actions job validating install + pkg-config (MT-BUILD-004), `find_package(OpenJP3D)` with external project (MT-BUILD-005), and CPack source tarball (MT-BUILD-006). |
+| 15.8 | `tests/find_package_test/` | Minimal external CMake project (`CMakeLists.txt` + `main.c`) that uses `find_package(OpenJP3D REQUIRED)` and calls `opj_jp3d_get_version()`. |
+| 15.9 | GUI smoke test (`tests/test_gui.sh`) | Headless L1/L2 smoke test using Xvfb: launches `opj_jp3d_gui`, verifies the process stays alive, captures a screenshot, and verifies clean exit on SIGTERM. Registered in CMake as `gui_smoke` test (Linux only). |
+| 15.10 | CI: `gui-smoke` job | New GitHub Actions job installing SDL2/GL/Xvfb/xdotool/ImageMagick, building with `BUILD_GUI_TOOLS=ON`, and running `test_gui.sh` under `xvfb-run`. |
+| 15.11 | Traceability updates (`doc/test-automation-plan.md`) | Updated all traceability tables, implementation phase status, work items, summary counts, and file inventory to reflect Phases A–D completion. |
+| 15.12 | `.gitignore` updates | Added patterns for generated test data (`*.jp3d`, `*.j3d`, `tests/testdata_out/`). |
+
+### Exit Criteria
+
+- All 13 existing CTest targets pass (including new assertions).
+- `tests/generate_test_data.py` produces 10 deterministic data files.
+- `tests/test_gui.sh` runs successfully under `xvfb-run` when GUI is built.
+- CI workflow defines `build-minimal`, `packaging`, and `gui-smoke` jobs.
+- Traceability matrix shows 85 of 107 tests covered (79%).
+
+---
+
 | Risk | Mitigation |
 |------|------------|
 | Legacy JP3D code is too outdated to reuse | Phase 0.7 audit determines feasibility early; fresh implementation is the fallback. |

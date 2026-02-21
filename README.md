@@ -141,8 +141,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 12** — MATLAB/Octave Bindings ✅
 - **Phase 13** — Go Bindings ✅
 - **Phase 14** — Rust Bindings ✅
+- **Phase 15** — Test Automation (Phases A–D) ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8–14 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8–15 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan,
 [CHANGELOG.md](CHANGELOG.md) for detailed change history,

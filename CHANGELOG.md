@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 15: Test Automation (Phases A–D)**
+  - **15.1 Test data generator** (`tests/generate_test_data.py`): Python script
+    producing 10 deterministic datasets (TD-001 – TD-010) with fixed seeds for
+    reproducibility. Covers 8-bit/16-bit, signed/unsigned, single-/multi-component
+    layouts, from 4×4×4 ramp patterns to 256×256×64 gradient+noise volumes.
+  - **15.2 Error callback test** (`test_roundtrip.c`): `test_error_cb` verifies
+    that `opj_jp3d_decode` invokes the user callback with `OPJ_JP3D_MSG_ERROR`
+    severity when given invalid data (closes MT-API-009 gap).
+  - **15.3 Decoder callback wiring** (`openjp3d.c`): Added `DECODE_MSG` macro
+    to `opj_jp3d_decode()` — invokes the user callback on SOC, SIZ3D, EOC
+    marker errors and invalid-input conditions.
+  - **15.4 CLI test extensions** (`test_cli.c`): 5 new tests —
+    `test_verbose_content` (MT-CLI-011), `test_missing_file` (MT-CLI-014),
+    `test_decompress_version` (MT-CLI-016), `test_dump_version` (MT-CLI-017),
+    `test_transcode_version` (MT-CLI-018).
+  - **15.5 JPIP server lifecycle test** (`test_jpip3d.c`):
+    `test_server_lifecycle` — full create→load→handle→destroy lifecycle
+    covering MT-JPIP-002.
+  - **15.6 CI `build-minimal` job**: Builds core library with all optional
+    features OFF (covers MT-BUILD-003).
+  - **15.7 CI `packaging` job**: Validates install, pkg-config (MT-BUILD-004),
+    `find_package(OpenJP3D)` (MT-BUILD-005), and CPack source tarball
+    (MT-BUILD-006).
+  - **15.8 `find_package` test project** (`tests/find_package_test/`): Minimal
+    CMake project validating the installed OpenJP3D package.
+  - **15.9 GUI smoke test** (`tests/test_gui.sh`): Headless L1/L2 smoke test
+    using Xvfb — launch, screenshot, clean SIGTERM exit.
+  - **15.10 CI `gui-smoke` job**: Builds with `BUILD_GUI_TOOLS=ON` and runs
+    the headless smoke test under `xvfb-run`.
+  - **15.11 Traceability updates** (`doc/test-automation-plan.md`): All
+    traceability tables updated; automated coverage raised from 63% to 79%.
+  - **15.12 `.gitignore` updates**: Patterns for generated test data.
+
 - **Test automation plan** (`doc/test-automation-plan.md`): Phased plan (A–E)
   to automate all 107 manual test procedures from `doc/manual-testing.md`.
   Includes gap analysis, test data catalog (10 deterministic datasets), CI
