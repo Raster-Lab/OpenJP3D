@@ -36,7 +36,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 4** — SIMD Optimisation ✅
 - **Phase 5** — Command-Line Tools ✅
 - **Phase 6** — Documentation & Examples ✅
-- **Phase 7** — Integration Testing & Release *(planned)*
+- **Phase 7** — Integration Testing & Release ✅
+
+**Current release: v1.0.0**
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

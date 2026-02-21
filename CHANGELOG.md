@@ -5,9 +5,43 @@ All notable changes to the OpenJP3D project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-02-21
 
 ### Added
+
+- Phase 7: Integration Testing & Release Preparation.
+  - **7.1 Conformance testing**: `tests/test_conformance.c` — 26 tests
+    covering edge-case JP3D codestreams: single-slice volumes (d=1),
+    single-row (h=1), single-column (w=1), 1×1×1 minimal volumes, full
+    8-bit value coverage, 16-bit and 32-bit precision, signed 8-bit and
+    16-bit samples, multi-component (3 and 4 components), tiled encoding,
+    non-power-of-2 dimensions, asymmetric dimensions, large volumes
+    (64×64×64), HTJ2K mode round-trips, and lossy mode with PSNR
+    verification.
+  - **7.2 Real-world datasets**: `tests/test_integration.c` — 20 tests
+    simulating medical imaging (CT/MRI), satellite/geospatial stacks,
+    microscopy data, multi-tile encoding, HTJ2K round-trips, lossy
+    compression with PSNR checks, multi-resolution decomposition, dense
+    data, and constant-value volumes.
+  - **7.3 Upstream compatibility**: `tests/test_compat.c` — 34 tests
+    verifying version strings, version macros, API function callability,
+    boolean/filter/colour-space/HTJ2K constants, default parameter values,
+    and encode→decode API stability.
+  - **7.4 Security review**: `tools/fuzz/fuzz_decode.c` — libFuzzer/AFL++
+    harness for decoder paths; `BUILD_FUZZ` CMake option; build
+    instructions for sanitizer-enabled fuzzing.
+  - **7.5 Performance report**: `doc/performance-report.md` documenting
+    benchmark methodology, reference results across architectures and
+    compression modes, and reproduction instructions.
+  - **7.6 Release packaging**: CMake install targets for libraries, headers,
+    and CLI binaries via `GNUInstallDirs`; `cmake/openjp3d.pc.in` pkg-config
+    template; `cmake/OpenJP3DConfig.cmake.in` for `find_package(OpenJP3D)`;
+    CPack source tarball configuration (TGZ/TXZ); versioned shared library
+    support (`libopenjp3d.so.1.0.0`).
+  - **7.7 Tagging & changelog**: Version bumped to 1.0.0 in `CMakeLists.txt`
+    and `openjp3d.h`; complete `CHANGELOG.md` entries for all phases.
+  - `BUILD_FUZZ` CMake option added (default OFF, Clang-only).
+  - `INSTALL.md` updated with new build options and install instructions.
 
 - Phase 6: Documentation & Examples.
   - **6.1 API reference**: Comprehensive Doxygen annotations on all public
