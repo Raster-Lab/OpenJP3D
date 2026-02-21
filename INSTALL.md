@@ -28,9 +28,19 @@ ctest --test-dir build
 | `BUILD_SHARED_LIBS`| OFF    | Build shared libraries               |
 | `ENABLE_OPENMP`   | OFF     | Enable OpenMP multi-threading        |
 | `BUILD_BENCHMARKS`| OFF     | Build the benchmark suite            |
+| `BUILD_FUZZ`     | OFF     | Build libFuzzer harnesses (Clang)    |
 
 ## Installation
 
 ```bash
 cmake --install build --prefix /usr/local
 ```
+
+This installs:
+- Libraries: `lib/libopenjp3d.a` (or `.so`), `lib/libopenjpip3d.a`
+- Headers: `include/openjp3d.h`, `include/openjpip3d.h`
+- Binaries: `bin/opj_jp3d_compress`, `bin/opj_jp3d_decompress`,
+  `bin/opj_jp3d_dump`, `bin/opj_jp3d_transcode`, `bin/opj_jpip3d_server`
+- Man pages: `share/man/man1/opj_jp3d_*.1`
+- CMake config: `lib/cmake/OpenJP3D/`
+- pkg-config: `lib/pkgconfig/openjp3d.pc`

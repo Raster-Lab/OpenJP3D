@@ -39,5 +39,5 @@ endif()
 set_target_properties(openjpip3d PROPERTIES
     VERSION   ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    PUBLIC_HEADER openjpip3d.h
+    PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/openjpip3d.h"
 )

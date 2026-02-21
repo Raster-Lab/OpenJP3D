@@ -120,5 +120,5 @@ endif()
 set_target_properties(openjp3d PROPERTIES
     VERSION   ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    PUBLIC_HEADER openjp3d.h
+    PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/openjp3d.h"
 )
