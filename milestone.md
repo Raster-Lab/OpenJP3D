@@ -232,6 +232,75 @@ interactive protocol to support volumetric data.
 
 ---
 
+## Phase 8 — Interactive GUI Test Application
+
+**Goal:** Provide a cross-platform graphical application for interactively testing, visualising, and validating OpenJP3D codec functionality without relying on the command-line tools.
+
+### 8A — Application Framework & UI Shell
+
+| # | Task | Details |
+|---|------|---------|
+| 8A.1 | GUI toolkit selection | Evaluate and select a cross-platform C/C++ GUI toolkit (e.g., Qt 6, Dear ImGui + SDL2/GLFW, GTK 4, or wxWidgets). Prefer a lightweight option that keeps the dependency footprint small. Document the choice and rationale in `doc/gui-toolkit-rationale.md`. |
+| 8A.2 | Application scaffold | Create the GUI application target `opj_jp3d_gui` under `src/bin/jp3d/gui/`. Add a `BUILD_GUI_TOOLS` CMake option (default OFF). Wire into the root `CMakeLists.txt`. |
+| 8A.3 | Main window layout | Implement the main window with: menu bar, toolbar, file-browser panel, volume-info panel, slice/volume viewport, and a log/console panel. Support resizable and dockable panels. |
+| 8A.4 | Theme & accessibility | Light and dark themes. Ensure sufficient contrast and keyboard-navigable controls for accessibility compliance. |
+
+### 8B — Volume Loading & Visualisation
+
+| # | Task | Details |
+|---|------|---------|
+| 8B.1 | File open dialog | Open raw volumes (`.raw`, `.vol`), multi-page TIFF stacks, and JP3D codestreams (`.jp3d`, `.j3d`). Auto-detect format or prompt for parameters (dimensions, bit-depth, byte-order) for raw files. |
+| 8B.2 | Slice viewer | 2-D slice viewer for axial, sagittal, and coronal planes. Slider or scroll-wheel navigation along the selected axis. Support window/level (brightness/contrast) adjustment. |
+| 8B.3 | 3-D volume rendering | Optional 3-D volume rendering viewport using GPU-accelerated ray-casting (OpenGL 3.3+ or Vulkan). Configurable transfer function and opacity mapping. |
+| 8B.4 | Metadata display | Display volume metadata (dimensions, bit-depth, number of components, tile grid, decomposition levels, compression mode) in the info panel. |
+| 8B.5 | Histogram & statistics | Compute and display voxel intensity histogram, min/max/mean/std-dev statistics for the loaded volume or a user-selected region of interest. |
+
+### 8C — Encoding & Decoding Controls
+
+| # | Task | Details |
+|---|------|---------|
+| 8C.1 | Encode panel | GUI controls for all encoder parameters: tile size (X/Y/Z), decomposition levels, code-block size, target bit-rate, lossless vs. lossy, HTJ2K mode toggle, number of threads. "Encode" button triggers encoding and displays progress. |
+| 8C.2 | Decode panel | GUI controls for decoder options: sub-volume extraction (offset + size), reduced resolution level, single-slice mode. "Decode" button triggers decoding and loads the result into the viewer. |
+| 8C.3 | Transcode panel | Interface for EBCOT ↔ HTJ2K transcoding. Select input codestream, choose target mode, and execute. |
+| 8C.4 | Progress & cancellation | Progress bar with percentage and elapsed time for encode/decode/transcode operations. Support cancellation of long-running operations. |
+
+### 8D — Round-Trip Testing & Validation
+
+| # | Task | Details |
+|---|------|---------|
+| 8D.1 | Round-trip test wizard | One-click round-trip test: encode → decode → compare. Reports pass/fail for lossless (bit-exact) and displays PSNR/MSE for lossy. |
+| 8D.2 | Diff viewer | Side-by-side or overlay viewer comparing original and decoded volumes. Highlight differing voxels with a configurable threshold. Error-map visualisation (absolute difference per voxel). |
+| 8D.3 | Batch test runner | Queue multiple encode/decode/round-trip jobs with varying parameters. Display results in a table (parameter set, pass/fail, PSNR, compression ratio, encode time, decode time). Export results to CSV. |
+| 8D.4 | Codestream inspector | Visual representation of the JP3D codestream structure (markers, tile parts, packets) similar to `opj_jp3d_dump` output but presented in a tree-view widget. |
+
+### 8E — JPIP 3-D Streaming Client
+
+| # | Task | Details |
+|---|------|---------|
+| 8E.1 | JPIP connection dialog | Connect to a JPIP server by URL. Display available datasets and session info. |
+| 8E.2 | Interactive sub-volume browsing | Navigate volumetric data served via JPIP. Request and display sub-volumes interactively. Show cache/download progress per region. |
+| 8E.3 | Network diagnostics | Display JPIP session statistics: bytes transferred, cache hit ratio, request/response latency, number of active sessions. |
+
+### 8F — Logging, Preferences & Platform Support
+
+| # | Task | Details |
+|---|------|---------|
+| 8F.1 | Log console | Embedded log panel capturing all `opj_event_mgr_t` callbacks (errors, warnings, info). Support filtering by severity, copy-to-clipboard, and export to file. |
+| 8F.2 | Preferences dialog | Persistent settings: default file paths, encoding presets, viewer defaults (interpolation, background colour), theme selection, thread count. Stored in a platform-appropriate config file (e.g., `~/.config/openjp3d/gui.ini`). |
+| 8F.3 | Cross-platform packaging | Build and package the GUI application for Linux (AppImage or Flatpak), macOS (`.app` bundle), and Windows (NSIS/WiX installer or portable `.zip`). |
+| 8F.4 | Keyboard shortcuts | Configurable keyboard shortcuts for common actions (open, encode, decode, next/previous slice, zoom, pan). |
+
+### Exit Criteria
+
+- GUI application builds and runs on Linux, macOS, and Windows.
+- All codec operations (encode, decode, transcode) are accessible via the GUI with parameter controls.
+- Round-trip validation (lossless bit-exact, lossy PSNR) passes through the GUI.
+- Slice viewer correctly displays volumes across all supported bit-depths and component counts.
+- JPIP client can connect to `opj_jpip3d_server` and browse volumetric data interactively.
+- Application is stable under normal use — no crashes or memory leaks detected by sanitizers.
+
+---
+
 ## Dependency & Risk Summary
 
 | Risk | Mitigation |
@@ -241,6 +310,8 @@ interactive protocol to support volumetric data.
 | JPIP 3-D specification ambiguity | Design modelled on existing OpenJPIP architecture; consult ISO/IEC 15444-9:2023 text. |
 | SIMD maintenance burden | Single scalar reference + SIMD variants with shared test harness ensures correctness. |
 | Upstream OpenJPEG API changes | Mirror directory layout; integration tested each phase; minimal coupling to internal OpenJPEG symbols. |
+| GUI toolkit dependency size | Select a lightweight toolkit (e.g., Dear ImGui + SDL2); `BUILD_GUI_TOOLS` is OFF by default so the core library remains dependency-free. |
+| Cross-platform GPU rendering | Require only OpenGL 3.3 (widely supported); provide a software-fallback 2-D slice viewer when GPU rendering is unavailable. |
 
 ---
 
@@ -256,7 +327,8 @@ interactive protocol to support volumetric data.
 | 5 | Command-Line Tools | 2–3 weeks |
 | 6 | Documentation & Examples | 2–3 weeks |
 | 7 | Integration Testing & Release | 3–4 weeks |
-| | **Total (sequential)** | **~29–40 weeks** |
+| 8 | Interactive GUI Test Application | 6–8 weeks |
+| | **Total (sequential)** | **~35–48 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
 > potentially reducing total wall-clock time by 6–10 weeks.
