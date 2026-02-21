@@ -31,11 +31,17 @@
  */
 
 #include "opj_dwt3d.h"
+#include "opj_dwt3d_simd.h"
+#include "opj_cpu.h"
 #include "opj_mem.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
 
 /* =========================================================================
  * 1-D 5/3 lifting (integer, lossless)
@@ -237,6 +243,73 @@ static int dwt97_inv_1d(int32_t *x, uint32_t n, double *fbuf)
 /** Maximum of two values. */
 static uint32_t uint32_max(uint32_t a, uint32_t b) { return a > b ? a : b; }
 
+/* =========================================================================
+ * SIMD dispatch for 5/3 integer lifting
+ * =========================================================================
+ * These wrappers select the best available 1-D implementation at runtime
+ * via opj_cpu_features().  The chosen path is cached after the first call.
+ * ========================================================================= */
+
+/** @brief Dispatch forward 5/3 1-D transform to best SIMD or scalar path. */
+static void dwt53_fwd_1d_dispatch(int32_t *x, uint32_t n, int32_t *scratch)
+{
+    /* Cache CPU features after first detection (benign race: idempotent). */
+    static uint32_t features = (uint32_t)-1;
+    if (features == (uint32_t)-1)
+        features = opj_cpu_features();
+
+#ifdef OPJ_JP3D_HAVE_AVX2
+    if (features & OPJ_CPU_FEATURE_AVX2) {
+        opj_dwt53_fwd_1d_avx2(x, n, scratch);
+        return;
+    }
+#endif
+#ifdef OPJ_JP3D_HAVE_SSE41
+    if (features & OPJ_CPU_FEATURE_SSE41) {
+        opj_dwt53_fwd_1d_sse41(x, n, scratch);
+        return;
+    }
+#endif
+#ifdef OPJ_JP3D_HAVE_NEON
+    if (features & OPJ_CPU_FEATURE_NEON) {
+        opj_dwt53_fwd_1d_neon(x, n, scratch);
+        return;
+    }
+#endif
+    dwt53_fwd_1d(x, n, scratch);
+}
+
+/** @brief Dispatch inverse 5/3 1-D transform to best SIMD or scalar path. */
+static void dwt53_inv_1d_dispatch(int32_t *x, uint32_t n, int32_t *scratch)
+{
+    static uint32_t features = (uint32_t)-1;
+    if (features == (uint32_t)-1)
+        features = opj_cpu_features();
+
+#ifdef OPJ_JP3D_HAVE_AVX2
+    if (features & OPJ_CPU_FEATURE_AVX2) {
+        opj_dwt53_inv_1d_avx2(x, n, scratch);
+        return;
+    }
+#endif
+#ifdef OPJ_JP3D_HAVE_SSE41
+    if (features & OPJ_CPU_FEATURE_SSE41) {
+        opj_dwt53_inv_1d_sse41(x, n, scratch);
+        return;
+    }
+#endif
+#ifdef OPJ_JP3D_HAVE_NEON
+    if (features & OPJ_CPU_FEATURE_NEON) {
+        opj_dwt53_inv_1d_neon(x, n, scratch);
+        return;
+    }
+#endif
+    dwt53_inv_1d(x, n, scratch);
+}
+
+/* Minimum row count to make OpenMP parallelism worthwhile. */
+#define OPJ_DWT3D_OMP_THRESHOLD 16
+
 int opj_dwt3d_fwd(int32_t *data,
                   uint32_t w, uint32_t h, uint32_t d,
                   uint32_t nx, uint32_t ny, uint32_t nz,
@@ -268,15 +341,33 @@ int opj_dwt3d_fwd(int32_t *data,
 
         /* Transform along X for every (z, y) pair */
         if (do_x && cur_w > 1) {
+#ifdef _OPENMP
+            /* Parallel: each thread uses its own scratch buffer. */
+            #pragma omp parallel for collapse(2) schedule(static) \
+                if((cur_d * cur_h) >= OPJ_DWT3D_OMP_THRESHOLD)
+            for (uint32_t z = 0; z < cur_d; z++) {
+                for (uint32_t y = 0; y < cur_h; y++) {
+                    int32_t *row = data + (z * h + y) * w;
+                    if (filter == OPJ_JP3D_FILTER_53) {
+                        int32_t *si = (int32_t *)opj_jp3d_malloc(cur_w * sizeof(int32_t));
+                        if (si) { dwt53_fwd_1d_dispatch(row, cur_w, si); opj_jp3d_free(si); }
+                    } else {
+                        double *sf = (double *)opj_jp3d_malloc(cur_w * sizeof(double));
+                        if (sf) { dwt97_fwd_1d(row, cur_w, sf); opj_jp3d_free(sf); }
+                    }
+                }
+            }
+#else
             for (uint32_t z = 0; z < cur_d; z++) {
                 for (uint32_t y = 0; y < cur_h; y++) {
                     int32_t *row = data + (z * h + y) * w;
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_fwd_1d(row, cur_w, scratch_i);
+                        dwt53_fwd_1d_dispatch(row, cur_w, scratch_i);
                     else
                         dwt97_fwd_1d(row, cur_w, scratch_f);
                 }
             }
+#endif
         }
 
         /* Transform along Y for every (z, x) pair */
@@ -302,7 +393,7 @@ int opj_dwt3d_fwd(int32_t *data,
                     for (uint32_t y = 0; y < cur_h; y++)
                         col[y] = data[(z * h + y) * w + x];
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_fwd_1d(col, cur_h, col_scratch_i);
+                        dwt53_fwd_1d_dispatch(col, cur_h, col_scratch_i);
                     else
                         dwt97_fwd_1d(col, cur_h, col_scratch_f);
                     /* scatter */
@@ -337,7 +428,7 @@ int opj_dwt3d_fwd(int32_t *data,
                     for (uint32_t z = 0; z < cur_d; z++)
                         pillar[z] = data[(z * h + y) * w + x];
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_fwd_1d(pillar, cur_d, pil_scratch_i);
+                        dwt53_fwd_1d_dispatch(pillar, cur_d, pil_scratch_i);
                     else
                         dwt97_fwd_1d(pillar, cur_d, pil_scratch_f);
                     for (uint32_t z = 0; z < cur_d; z++)
@@ -422,7 +513,7 @@ int opj_dwt3d_inv(int32_t *data,
                     for (uint32_t z = 0; z < cur_d; z++)
                         pillar[z] = data[(z * h + y) * w + x];
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_inv_1d(pillar, cur_d, pil_scratch_i);
+                        dwt53_inv_1d_dispatch(pillar, cur_d, pil_scratch_i);
                     else
                         dwt97_inv_1d(pillar, cur_d, pil_scratch_f);
                     for (uint32_t z = 0; z < cur_d; z++)
@@ -455,7 +546,7 @@ int opj_dwt3d_inv(int32_t *data,
                     for (uint32_t y = 0; y < cur_h; y++)
                         col[y] = data[(z * h + y) * w + x];
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_inv_1d(col, cur_h, col_scratch_i);
+                        dwt53_inv_1d_dispatch(col, cur_h, col_scratch_i);
                     else
                         dwt97_inv_1d(col, cur_h, col_scratch_f);
                     for (uint32_t y = 0; y < cur_h; y++)
@@ -469,6 +560,22 @@ int opj_dwt3d_inv(int32_t *data,
 
         /* Inverse X */
         if (do_x && cur_w > 1) {
+#ifdef _OPENMP
+            #pragma omp parallel for collapse(2) schedule(static) \
+                if((cur_d * cur_h) >= OPJ_DWT3D_OMP_THRESHOLD)
+            for (uint32_t z = 0; z < cur_d; z++) {
+                for (uint32_t y = 0; y < cur_h; y++) {
+                    int32_t *row = data + (z * h + y) * w;
+                    if (filter == OPJ_JP3D_FILTER_53) {
+                        int32_t *si = (int32_t *)opj_jp3d_malloc(cur_w * sizeof(int32_t));
+                        if (si) { dwt53_inv_1d_dispatch(row, cur_w, si); opj_jp3d_free(si); }
+                    } else {
+                        double *sf = (double *)opj_jp3d_malloc(cur_w * sizeof(double));
+                        if (sf) { dwt97_inv_1d(row, cur_w, sf); opj_jp3d_free(sf); }
+                    }
+                }
+            }
+#else
             int32_t *scratch_i = NULL;
             double  *scratch_f = NULL;
             if (filter == OPJ_JP3D_FILTER_53) {
@@ -482,13 +589,14 @@ int opj_dwt3d_inv(int32_t *data,
                 for (uint32_t y = 0; y < cur_h; y++) {
                     int32_t *row = data + (z * h + y) * w;
                     if (filter == OPJ_JP3D_FILTER_53)
-                        dwt53_inv_1d(row, cur_w, scratch_i);
+                        dwt53_inv_1d_dispatch(row, cur_w, scratch_i);
                     else
                         dwt97_inv_1d(row, cur_w, scratch_f);
                 }
             }
             opj_jp3d_free(scratch_i);
             opj_jp3d_free(scratch_f);
+#endif
         }
     }
 
