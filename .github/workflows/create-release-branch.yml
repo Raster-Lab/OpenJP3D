@@ -10,6 +10,10 @@ on:
         description: 'Release version (e.g. 1.0.0)'
         required: true
         type: string
+      ref:
+        description: 'Source branch or SHA to create the release from (defaults to the default branch)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -34,20 +38,25 @@ jobs:
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Check branch does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="release/v${{ steps.version.outputs.version }}"
+          if gh api "repos/${{ github.repository }}/branches/${BRANCH}" > /dev/null 2>&1; then
+            echo "::error::Branch '${BRANCH}' already exists."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
           fetch-depth: 0
 
       - name: Create release branch
         run: |
           BRANCH="release/v${{ steps.version.outputs.version }}"
-
-          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
-            echo "::error::Branch '${BRANCH}' already exists."
-            exit 1
-          fi
-
           git checkout -b "$BRANCH"
           git push origin "$BRANCH"
           echo "Created branch **${BRANCH}**" >> "$GITHUB_STEP_SUMMARY"
