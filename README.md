@@ -1,1 +1,33 @@
 # OpenJP3D
+
+**JPEG 2000 Part 10 (JP3D) volumetric codec**
+
+OpenJP3D is a C library implementing JPEG 2000 Part 10 (JP3D) volumetric
+compression (ISO/IEC 15444-10), built as an extension of the
+[OpenJPEG](https://github.com/uclouvain/openjpeg) project (version 2.5.4).
+
+## Features
+
+- Lossless and lossy compression of 3-D image volumes
+- Optional HTJ2K high-throughput block coding (JPEG 2000 Part 15)
+- JPIP interactive streaming for volumetric data (JPEG 2000 Part 9)
+- SIMD-optimised paths for x86-64 (SSE4.1/AVX2) and AArch64 (NEON)
+
+## Building
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build
+```
+
+See [INSTALL.md](INSTALL.md) for detailed build instructions and options.
+
+## Project Status
+
+OpenJP3D is under active development. See [milestone.md](milestone.md) for the
+implementation plan.
+
+## Licence
+
+BSD-2-Clause — see [LICENSE](LICENSE) for details.

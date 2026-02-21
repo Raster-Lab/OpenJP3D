@@ -1,0 +1,18 @@
+---
+Language: C
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+ColumnLimit: 100
+SortIncludes: true
+IncludeBlocks: Preserve
+AlignAfterOpenBracket: Align
+AlignConsecutiveMacros: true
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+...
