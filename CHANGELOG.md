@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 13: Go Bindings**
+  - **13.1 Go package scaffold** (`go/openjp3d/`): module
+    `github.com/raster-lab/openjp3d` declared in `go.mod`.
+    BSD-2-Clause licence header on all source files.
+  - **13.2 CGo runtime loader** (`go/openjp3d/openjp3d.go`):
+    CGo preamble embeds cross-platform `dlopen`/`LoadLibrary` shims
+    and C struct mirrors matching `openjp3d.h`.  All entry points
+    resolved at runtime; no link-time dependency on the shared library.
+    Library search order: `OPENJP3D_LIBRARY` env var → `lib/` next to
+    the executable → OS default loader.
+  - **13.3 Callback bridge** (`go/openjp3d/callback.go`): exported Go
+    function `ojp3d_go_callback_bridge` receives C-level messages and
+    routes them to the current `MsgCallback` via a mutex-protected
+    global slot.
+  - **13.4 High-level Go API**: `LoadLib`, `IsLoaded`, `GetVersion`,
+    `Encode`, `Decode`, `TranscodeToHT`, `DefaultEncodeParams`.
+    `EncodeParams` and `DecodeParams` structs; `VolumeInfo` metadata.
+  - **13.5 CMake integration** (`go/CMakeLists.txt`):
+    `BUILD_GO_BINDINGS` option; `test_go_bindings` CTest target
+    running `go test -v ./...` with `OPENJP3D_LIBRARY` injected.
+    Requires Go ≥ 1.21 and `BUILD_SHARED_LIBS=ON`.
+  - **13.6 Test suite** (`go/openjp3d/openjp3d_test.go`): 32 tests
+    covering library loading, version format, constants, `EncodeParams`
+    defaults, lossless round-trips for all five supported precisions
+    (uint8/int8/uint16/int16/int32), multi-component (3- and 4-channel)
+    volumes, single-slice edge case, non-square dimensions, large
+    (16×16×16) volumes, tiled encoding, HTJ2K lossless, lossy 9/7,
+    `TranscodeToHT`, SOC marker check, data-layout correctness, message
+    callback, `VolumeInfo` metadata, and error-handling cases.
+  - **13.7 Documentation** (`go/openjp3d/README.md`): installation,
+    library search order, quick-start examples, and full API reference.
+
 - **Phase 12: MATLAB/Octave Bindings**
   - **12.1 MEX C wrapper** (`matlab/openjp3d/src/openjp3d_mex.c`):
     single `mexFunction` entry point dispatching on a command string
