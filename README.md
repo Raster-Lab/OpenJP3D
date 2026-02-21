@@ -144,8 +144,10 @@ OpenJP3D is under active development. The following phases are complete:
 
 **Current release: v1.0.0** (phases 0–7); phases 8–14 in `[Unreleased]`.
 
-See [milestone.md](milestone.md) for the full implementation plan and
-[CHANGELOG.md](CHANGELOG.md) for detailed change history.
+See [milestone.md](milestone.md) for the full implementation plan,
+[CHANGELOG.md](CHANGELOG.md) for detailed change history, and
+[doc/manual-testing.md](doc/manual-testing.md) for the comprehensive manual
+testing guide (107 test procedures covering every feature).
 
 ## Licence
 

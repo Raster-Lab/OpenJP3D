@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Comprehensive manual testing guide** (`doc/manual-testing.md`): 107 manual
+  test procedures covering every user-facing feature — Core C API (13 tests),
+  CLI tools (18), GUI application (25), JPIP streaming (5), Python bindings
+  (10), Julia bindings (6), R bindings (5), MATLAB/Octave bindings (4), Go
+  bindings (5), Rust bindings (5), SIMD optimisation (4), and build system &
+  packaging (7).
+
 - **Phase 14: Rust Bindings**
   - **14.1 Rust crate scaffold** (`rust/openjp3d/`): `Cargo.toml` with
     `name = "openjp3d"`, edition 2021, `libloading = "0.8"` dependency.
