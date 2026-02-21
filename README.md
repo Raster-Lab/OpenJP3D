@@ -15,7 +15,16 @@ compression (ISO/IEC 15444-10), built as an extension of the
 - Command-line tools: `opj_jp3d_compress`, `opj_jp3d_decompress`,
   `opj_jp3d_dump`, `opj_jp3d_transcode`, `opj_jpip3d_server`
 - Interactive GUI test application (`opj_jp3d_gui`) built with
-  Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`)
+  Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`):
+  - File open dialog for `.jp3d`/`.j3d` codestreams and raw `.raw`/`.vol` volumes
+  - 2-D slice viewer (axial/sagittal/coronal) with window/level controls and
+    scroll-wheel navigation
+  - 3-D ray-cast volume renderer (GPU-accelerated GLSL, configurable
+    azimuth/elevation/density)
+  - Metadata panel showing dimensions, bit-depth, components, DWT levels, and
+    compression mode
+  - Per-component statistics (min/max/mean/std-dev) and 256-bin intensity
+    histogram
 
 ## Building
 
@@ -39,7 +48,8 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 5** — Command-Line Tools ✅
 - **Phase 6** — Documentation & Examples ✅
 - **Phase 7** — Integration Testing & Release ✅
-- **Phase 8A** — GUI Application Framework & UI Shell ✅ *(in progress — Phase 8)*
+- **Phase 8A** — GUI Application Framework & UI Shell ✅
+- **Phase 8B** — GUI Volume Loading & Visualisation ✅ *(in progress — Phase 8)*
 
 **Current release: v1.0.0**
 

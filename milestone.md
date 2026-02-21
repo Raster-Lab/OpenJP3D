@@ -245,7 +245,7 @@ interactive protocol to support volumetric data.
 | 8A.3 | Main window layout | Implement the main window with: menu bar, toolbar, file-browser panel, volume-info panel, slice/volume viewport, and a log/console panel. Support resizable and dockable panels. |
 | 8A.4 | Theme & accessibility | Light and dark themes. Ensure sufficient contrast and keyboard-navigable controls for accessibility compliance. |
 
-### 8B — Volume Loading & Visualisation
+### 8B — Volume Loading & Visualisation ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|

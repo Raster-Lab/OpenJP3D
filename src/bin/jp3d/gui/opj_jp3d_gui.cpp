@@ -12,9 +12,9 @@
  * Provides a dockable window layout with:
  *   - Menu bar (File, View, Tools, Help)
  *   - Toolbar (common actions)
- *   - File browser panel
- *   - Volume info panel
- *   - Slice / volume viewport
+ *   - File browser / open panel          (Phase 8B.1)
+ *   - Volume info + statistics panel     (Phase 8B.4 / 8B.5)
+ *   - Slice / volume viewport            (Phase 8B.2 / 8B.3)
  *   - Log / console panel
  */
 
@@ -43,6 +43,7 @@ extern "C" {
 }
 
 #include "gui_theme.h"
+#include "gui_volume.h"
 
 /* ================================================================== */
 /*  Log panel ring buffer                                             */
@@ -76,7 +77,7 @@ static void gui_log(enum log_severity sev, const char *fmt, ...)
 }
 
 /* ================================================================== */
-/*  Panel state                                                       */
+/*  Global state                                                      */
 /* ================================================================== */
 
 static bool g_show_file_browser   = true;
@@ -86,16 +87,151 @@ static bool g_show_log_console    = true;
 static bool g_show_about          = false;
 static bool g_running             = true;
 
+/* Central volume state (Phase 8B) */
+static GuiVolumeState g_vol;
+
+/* ================================================================== */
+/*  Open-volume dialog state (8B.1)                                   */
+/* ================================================================== */
+
+static bool  g_open_dlg_visible    = false;
+static char  g_open_dlg_path[512]  = "";
+static bool  g_open_raw_params_dlg = false;
+static RawOpenParams g_raw_params  = {64, 64, 64, 8, 0, 1};
+static char  g_open_dlg_error[256] = "";
+
+/* Detect if a path looks like a JP3D codestream */
+static bool path_is_jp3d(const char *p)
+{
+    size_t len = strlen(p);
+    if (len < 4) return false;
+    const char *ext = p + len - 4;
+    return (strcmp(ext, ".j3d") == 0 || strcmp(ext + 1, "jp3d") == 0);
+}
+
+/* Detect raw/vol extension */
+static bool path_is_raw(const char *p)
+{
+    size_t len = strlen(p);
+    if (len < 4) return false;
+    const char *ext = p + len - 4;
+    return (strcmp(ext, ".raw") == 0 || strcmp(ext, ".vol") == 0);
+}
+
 /* ================================================================== */
 /*  Panel drawing helpers                                             */
 /* ================================================================== */
 
+/* ---- open-volume dialog (8B.1) ---- */
+static void open_volume(const char *path)
+{
+    char errbuf[256] = "";
+    bool ok = false;
+
+    if (path_is_jp3d(path)) {
+        ok = gui_volume_load_jp3d(&g_vol, path, errbuf, sizeof(errbuf));
+    } else if (path_is_raw(path)) {
+        ok = gui_volume_load_raw(&g_vol, path, &g_raw_params,
+                                 errbuf, sizeof(errbuf));
+    } else {
+        /* Try JP3D first, fall back to raw */
+        ok = gui_volume_load_jp3d(&g_vol, path, errbuf, sizeof(errbuf));
+        if (!ok) {
+            ok = gui_volume_load_raw(&g_vol, path, &g_raw_params,
+                                     errbuf, sizeof(errbuf));
+        }
+    }
+
+    if (ok) {
+        gui_log(LOG_INFO, "Loaded: %s  (%ux%ux%u, %u comp, %u bit%s)",
+                path,
+                g_vol.vol->comps[0].w,
+                g_vol.vol->comps[0].h,
+                g_vol.vol->comps[0].d,
+                g_vol.vol->numcomps,
+                g_vol.vol->comps[0].prec,
+                g_vol.vol->comps[0].sgnd ? " signed" : "");
+        g_open_dlg_error[0] = '\0';
+    } else {
+        gui_log(LOG_ERROR, "Failed to load '%s': %s", path, errbuf);
+        strncpy(g_open_dlg_error, errbuf, sizeof(g_open_dlg_error) - 1);
+    }
+}
+
+static void draw_open_dialog(void)
+{
+    if (!g_open_dlg_visible) return;
+
+    ImGui::SetNextWindowSize(ImVec2(520, 220), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Open Volume", &g_open_dlg_visible,
+                      ImGuiWindowFlags_NoCollapse)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::TextWrapped("Enter the path to a JP3D codestream (.jp3d/.j3d) "
+                       "or a raw binary volume (.raw/.vol).");
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputText("##path", g_open_dlg_path, sizeof(g_open_dlg_path));
+
+    ImGui::Spacing();
+    bool is_raw = path_is_raw(g_open_dlg_path);
+
+    if (is_raw) {
+        ImGui::TextDisabled("Raw file detected — set dimensions below:");
+        ImGui::PushItemWidth(120);
+        ImGui::InputInt("Width",     (int *)&g_raw_params.width);
+        ImGui::SameLine();
+        ImGui::InputInt("Height",    (int *)&g_raw_params.height);
+        ImGui::SameLine();
+        ImGui::InputInt("Depth",     (int *)&g_raw_params.depth);
+        ImGui::InputInt("Precision", (int *)&g_raw_params.prec);
+        ImGui::SameLine();
+        ImGui::InputInt("Components",(int *)&g_raw_params.numcomps);
+        ImGui::SameLine();
+        bool sgnd = (g_raw_params.sgnd != 0);
+        if (ImGui::Checkbox("Signed", &sgnd))
+            g_raw_params.sgnd = sgnd ? 1 : 0;
+        ImGui::PopItemWidth();
+        /* Clamp to valid ranges */
+        if (g_raw_params.width     < 1) g_raw_params.width     = 1;
+        if (g_raw_params.height    < 1) g_raw_params.height    = 1;
+        if (g_raw_params.depth     < 1) g_raw_params.depth     = 1;
+        if (g_raw_params.prec      < 1) g_raw_params.prec      = 1;
+        if (g_raw_params.prec     > 32) g_raw_params.prec      = 32;
+        if (g_raw_params.numcomps < 1)  g_raw_params.numcomps  = 1;
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button("Load", ImVec2(80, 0))) {
+        open_volume(g_open_dlg_path);
+        if (!g_open_dlg_error[0])
+            g_open_dlg_visible = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(80, 0)))
+        g_open_dlg_visible = false;
+
+    if (g_open_dlg_error[0]) {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        ImGui::TextWrapped("Error: %s", g_open_dlg_error);
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::End();
+}
+
+/* ---- menu bar ---- */
 static void draw_menu_bar(void)
 {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open Volume...", "Ctrl+O")) {
-                gui_log(LOG_INFO, "File > Open Volume (not yet implemented)");
+                g_open_dlg_visible   = true;
+                g_open_dlg_error[0]  = '\0';
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
@@ -134,6 +270,7 @@ static void draw_menu_bar(void)
     }
 }
 
+/* ---- toolbar ---- */
 static void draw_toolbar(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6, 4));
@@ -151,7 +288,8 @@ static void draw_toolbar(void)
 
     if (ImGui::Begin("##Toolbar", NULL, toolbar_flags)) {
         if (ImGui::Button("Open")) {
-            gui_log(LOG_INFO, "Toolbar > Open (not yet implemented)");
+            g_open_dlg_visible  = true;
+            g_open_dlg_error[0] = '\0';
         }
         ImGui::SameLine();
         if (ImGui::Button("Encode")) {
@@ -190,49 +328,237 @@ static void draw_toolbar(void)
     ImGui::PopStyleVar(2);
 }
 
+/* ---- file browser / open panel (8B.1) ---- */
 static void draw_file_browser(void)
 {
     if (!g_show_file_browser) return;
     if (ImGui::Begin("File Browser", &g_show_file_browser)) {
-        ImGui::TextWrapped("File browser panel — drag and drop files or "
-                           "use File > Open Volume to load data.");
+        ImGui::TextWrapped("Use File > Open Volume (Ctrl+O) or the "
+                           "Open toolbar button to load a volume.");
         ImGui::Separator();
-        ImGui::TextDisabled("(No files loaded)");
+
+        if (g_vol.loaded) {
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Loaded:");
+            /* Show just the filename part */
+            const char *slash = strrchr(g_vol.filepath, '/');
+#ifdef _WIN32
+            const char *bslash = strrchr(g_vol.filepath, '\\');
+            if (bslash && (!slash || bslash > slash)) slash = bslash;
+#endif
+            ImGui::TextWrapped("%s", slash ? slash + 1 : g_vol.filepath);
+            ImGui::Spacing();
+            if (ImGui::Button("Close Volume")) {
+                gui_volume_state_free(&g_vol);
+                gui_log(LOG_INFO, "Volume closed.");
+            }
+        } else {
+            ImGui::TextDisabled("(No volume loaded)");
+            ImGui::Spacing();
+            if (ImGui::Button("Open Volume...")) {
+                g_open_dlg_visible  = true;
+                g_open_dlg_error[0] = '\0';
+            }
+        }
     }
     ImGui::End();
 }
 
+/* ---- volume info + statistics panel (8B.4 / 8B.5) ---- */
 static void draw_volume_info(void)
 {
     if (!g_show_volume_info) return;
     if (ImGui::Begin("Volume Info", &g_show_volume_info)) {
-        ImGui::TextWrapped("Volume information will be displayed here "
-                           "after loading a dataset.");
-        ImGui::Separator();
-        ImGui::Text("Dimensions:   —");
-        ImGui::Text("Bit depth:    —");
-        ImGui::Text("Components:   —");
-        ImGui::Text("Tile grid:    —");
-        ImGui::Text("DWT levels:   —");
-        ImGui::Text("Compression:  —");
+        if (!g_vol.loaded) {
+            ImGui::TextWrapped("Volume information will be displayed here "
+                               "after loading a dataset.");
+            ImGui::Separator();
+            ImGui::Text("Dimensions:   —");
+            ImGui::Text("Bit depth:    —");
+            ImGui::Text("Components:   —");
+            ImGui::Text("Tile grid:    —");
+            ImGui::Text("DWT levels:   —");
+            ImGui::Text("Compression:  —");
+        } else {
+            const opj_volume_t *v  = g_vol.vol;
+            const opj_volume_comp_t *c0 = &v->comps[0];
+
+            /* ---- metadata (8B.4) ---- */
+            ImGui::SeparatorText("Metadata");
+            ImGui::Text("Dimensions:  %u x %u x %u",
+                        c0->w, c0->h, c0->d);
+            ImGui::Text("Bit depth:   %u (%s)",
+                        c0->prec, c0->sgnd ? "signed" : "unsigned");
+            ImGui::Text("Components:  %u", v->numcomps);
+            ImGui::Text("Voxel dz:    %.3f", (double)c0->dz);
+
+            if (g_vol.is_jp3d) {
+                ImGui::Text("DWT levels:  %u", g_vol.num_resolutions);
+                ImGui::Text("Compression: %s%s",
+                            g_vol.filter_type == OPJ_JP3D_FILTER_97
+                                ? "9/7 (lossy)" : "5/3 (lossless)",
+                            g_vol.htj2k_mode ? " + HTJ2K" : "");
+            } else {
+                ImGui::Text("DWT levels:  —  (raw file)");
+                ImGui::Text("Compression: —  (raw file)");
+            }
+
+            /* ---- statistics (8B.5) ---- */
+            if (g_vol.comp_stats && g_vol.comp_stats[0].computed) {
+                ImGui::Spacing();
+                ImGui::SeparatorText("Statistics (Component 0)");
+
+                const GuiCompStats *st = &g_vol.comp_stats[0];
+                ImGui::Text("Min:    %.1f", (double)st->min_val);
+                ImGui::Text("Max:    %.1f", (double)st->max_val);
+                ImGui::Text("Mean:   %.2f", (double)st->mean);
+                ImGui::Text("StdDev: %.2f", (double)st->stddev);
+
+                /* ---- histogram ---- */
+                ImGui::Spacing();
+                ImGui::TextDisabled("Intensity histogram");
+                float hist_w = ImGui::GetContentRegionAvail().x;
+                ImGui::PlotHistogram("##hist",
+                                     st->histogram, GUI_HIST_BINS,
+                                     0, NULL, 0.0f, 1.0f,
+                                     ImVec2(hist_w, 80));
+
+                /* Window / level controls */
+                ImGui::Spacing();
+                ImGui::SeparatorText("Window / Level");
+                float wl_min = st->min_val;
+                float wl_max = st->max_val;
+                float range  = wl_max - wl_min;
+                if (range < 1.0f) range = 1.0f;
+
+                bool changed = false;
+                changed |= ImGui::SliderFloat("Center",
+                               &g_vol.win_center, wl_min, wl_max);
+                changed |= ImGui::SliderFloat("Width",
+                               &g_vol.win_width,  1.0f, range);
+                if (changed) {
+                    g_vol.auto_wl    = false;
+                    g_vol.tex_dirty  = true;
+                }
+                if (ImGui::Button("Reset W/L")) {
+                    g_vol.auto_wl   = true;
+                    g_vol.win_width  = range;
+                    g_vol.win_center = wl_min + range * 0.5f;
+                    g_vol.tex_dirty  = true;
+                }
+            }
+        }
     }
     ImGui::End();
 }
 
+/* ---- slice viewport (8B.2 / 8B.3) ---- */
 static void draw_viewport(void)
 {
     if (!g_show_viewport) return;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 4));
     if (ImGui::Begin("Viewport", &g_show_viewport)) {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        ImGui::TextWrapped(" Slice / volume viewport  (%d x %d)",
-                           (int)avail.x, (int)avail.y);
-        /* Future: render slice texture here */
+        if (!g_vol.loaded) {
+            ImGui::TextDisabled("Load a volume to begin viewing.");
+        } else {
+            /* ---- View-mode toggle ---- */
+            ImGui::RadioButton("Slice", (int *)&g_vol.show_3d, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("3-D Ray-Cast", (int *)&g_vol.show_3d, 1);
+            ImGui::SameLine();
+
+            /* ---- Axis selector (slice mode only) ---- */
+            if (!g_vol.show_3d) {
+                ImGui::Separator();
+                ImGui::SameLine();
+                const char *axes[] = { "Axial (Z)", "Sagittal (X)", "Coronal (Y)" };
+                int ax = (int)g_vol.slice_axis;
+                ImGui::PushItemWidth(130);
+                if (ImGui::Combo("Axis", &ax, axes, 3)) {
+                    g_vol.slice_axis = (GuiSliceAxis)ax;
+                    gui_volume_clamp_slice(&g_vol);
+                    g_vol.tex_dirty = true;
+                }
+                ImGui::PopItemWidth();
+
+                /* Slice index slider */
+                int depth = gui_volume_axis_depth(&g_vol);
+                ImGui::SameLine();
+                ImGui::PushItemWidth(200);
+                if (ImGui::SliderInt("Slice", &g_vol.slice_idx, 0, depth - 1)) {
+                    g_vol.tex_dirty = true;
+                }
+                ImGui::PopItemWidth();
+            } else {
+                /* 3-D controls */
+                ImGui::SameLine();
+                ImGui::PushItemWidth(120);
+                ImGui::SliderFloat("Az",  &g_vol.rc_azimuth,   -180.0f, 180.0f);
+                ImGui::SameLine();
+                ImGui::SliderFloat("El",  &g_vol.rc_elevation,  -90.0f,  90.0f);
+                ImGui::SameLine();
+                ImGui::SliderFloat("Density", &g_vol.rc_density, 0.01f, 5.0f);
+                ImGui::PopItemWidth();
+            }
+
+            ImGui::Separator();
+
+            /* ---- Image area ---- */
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            int iw = (int)avail.x;
+            int ih = (int)avail.y;
+            if (iw < 4) iw = 4;
+            if (ih < 4) ih = 4;
+
+            if (!g_vol.show_3d) {
+                /* --- Slice viewer --- */
+                if (g_vol.tex_dirty) {
+                    gui_volume_update_slice_texture(&g_vol);
+                }
+                if (g_vol.tex_id && g_vol.tex_w > 0 && g_vol.tex_h > 0) {
+                    /* Fit texture into available area preserving aspect */
+                    float aspect = (float)g_vol.tex_w / (float)g_vol.tex_h;
+                    float disp_w = (float)iw;
+                    float disp_h = disp_w / aspect;
+                    if (disp_h > (float)ih) {
+                        disp_h = (float)ih;
+                        disp_w = disp_h * aspect;
+                    }
+                    /* Centre it */
+                    float off_x = ((float)iw - disp_w) * 0.5f;
+                    float off_y = ((float)ih - disp_h) * 0.5f;
+                    ImVec2 cursor = ImGui::GetCursorScreenPos();
+                    ImGui::SetCursorScreenPos(
+                        ImVec2(cursor.x + off_x, cursor.y + off_y));
+                    ImGui::Image(
+                        (ImTextureID)(intptr_t)g_vol.tex_id,
+                        ImVec2(disp_w, disp_h));
+
+                    /* Scroll-wheel slice navigation */
+                    if (ImGui::IsItemHovered()) {
+                        float wheel = ImGui::GetIO().MouseWheel;
+                        if (wheel != 0.0f) {
+                            g_vol.slice_idx -= (int)wheel;
+                            gui_volume_clamp_slice(&g_vol);
+                            g_vol.tex_dirty = true;
+                        }
+                    }
+                }
+            } else {
+                /* --- 3-D ray-cast view --- */
+                gui_volume_render_raycast(&g_vol, iw, ih);
+                if (g_vol.rc_color_tex) {
+                    ImGui::Image(
+                        (ImTextureID)(intptr_t)g_vol.rc_color_tex,
+                        ImVec2((float)iw, (float)ih));
+                }
+            }
+        }
     }
     ImGui::End();
     ImGui::PopStyleVar();
 }
 
+/* ---- log console ---- */
 static void draw_log_console(void)
 {
     if (!g_show_log_console) return;
@@ -291,6 +617,7 @@ static void draw_log_console(void)
     ImGui::End();
 }
 
+/* ---- about dialog ---- */
 static void draw_about_dialog(void)
 {
     if (!g_show_about) return;
@@ -381,6 +708,9 @@ int main(int argc, char *argv[])
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    /* Initialise volume state */
+    gui_volume_state_init(&g_vol);
+
     gui_log(LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
     gui_log(LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
             IMGUI_VERSION, SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
@@ -408,6 +738,10 @@ int main(int argc, char *argv[])
             enum opj_gui_theme t = opj_gui_toggle_theme();
             gui_log(LOG_INFO, "Theme switched to %s",
                     t == OPJ_GUI_THEME_DARK ? "Dark" : "Light");
+        }
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O)) {
+            g_open_dlg_visible  = true;
+            g_open_dlg_error[0] = '\0';
         }
 
         /* New frame */
@@ -455,12 +789,12 @@ int main(int argc, char *argv[])
 
             ImGuiID dock_left_top, dock_left_bottom;
             ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up,
-                                        0.50f, &dock_left_top,
+                                        0.35f, &dock_left_top,
                                         &dock_left_bottom);
 
             ImGuiID dock_center, dock_bottom;
             ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Down,
-                                        0.28f, &dock_bottom, &dock_center);
+                                        0.22f, &dock_bottom, &dock_center);
 
             ImGui::DockBuilderDockWindow("File Browser",  dock_left_top);
             ImGui::DockBuilderDockWindow("Volume Info",   dock_left_bottom);
@@ -479,6 +813,7 @@ int main(int argc, char *argv[])
         draw_viewport();
         draw_log_console();
         draw_about_dialog();
+        draw_open_dialog();
 
         /* ---- Render ---- */
         ImGui::Render();
@@ -497,6 +832,8 @@ int main(int argc, char *argv[])
     /* -------------------------------------------------------------- */
     /*  Cleanup                                                       */
     /* -------------------------------------------------------------- */
+    gui_volume_state_free(&g_vol);
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
