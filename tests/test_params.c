@@ -27,7 +27,7 @@
 
 /**
  * @file test_params.c
- * @brief Unit tests for parameter initialisation and version functions.
+ * @brief Unit tests for parameter initialization and version functions.
  */
 
 #include "openjp3d.h"

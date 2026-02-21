@@ -50,10 +50,28 @@ static int pass_count = 0;
         } \
     } while (0)
 
-static const char *TMP1 = "/tmp/opj_raw_io_test1.raw";
-static const char *TMP2 = "/tmp/opj_raw_io_test2.raw";
-static const char *TMP3 = "/tmp/opj_raw_io_test3.raw";
-static const char *TMP4 = "/tmp/opj_raw_io_test4.raw";
+static char TMP1[256];
+static char TMP2[256];
+static char TMP3[256];
+static char TMP4[256];
+
+static void init_tmp_paths(void)
+{
+#ifdef _WIN32
+    const char *tmp = getenv("TEMP");
+    if (!tmp) tmp = "C:\\Temp";
+    snprintf(TMP1, sizeof(TMP1), "%s\\opj_raw_io_test1.raw", tmp);
+    snprintf(TMP2, sizeof(TMP2), "%s\\opj_raw_io_test2.raw", tmp);
+    snprintf(TMP3, sizeof(TMP3), "%s\\opj_raw_io_test3.raw", tmp);
+    snprintf(TMP4, sizeof(TMP4), "%s\\opj_raw_io_test4.raw", tmp);
+#else
+    const char *tmp = "/tmp";
+    snprintf(TMP1, sizeof(TMP1), "%s/opj_raw_io_test1.raw", tmp);
+    snprintf(TMP2, sizeof(TMP2), "%s/opj_raw_io_test2.raw", tmp);
+    snprintf(TMP3, sizeof(TMP3), "%s/opj_raw_io_test3.raw", tmp);
+    snprintf(TMP4, sizeof(TMP4), "%s/opj_raw_io_test4.raw", tmp);
+#endif
+}
 
 static int volumes_equal(const opj_volume_t *a, const opj_volume_t *b)
 {
@@ -70,6 +88,7 @@ static int volumes_equal(const opj_volume_t *a, const opj_volume_t *b)
 
 int main(void)
 {
+    init_tmp_paths();
     /* 1. Write then read 8-bit */
     {
         opj_volume_t *orig = opj_jp3d_create_volume(1, 4, 4, 4, 8, 0);
@@ -116,7 +135,7 @@ int main(void)
     {
         opj_volume_t *vol = opj_jp3d_create_volume(1, 2, 2, 2, 8, 0);
         ASSERT(vol != NULL);
-        ASSERT(opj_raw_io_read(vol, "/tmp/no_such_file_opj_test.raw") == 0);
+        ASSERT(opj_raw_io_read(vol, "/no_such_file_opj_test_xyz_123.raw") == 0);
         opj_jp3d_destroy_volume(vol);
     }
 

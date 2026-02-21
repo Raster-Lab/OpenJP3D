@@ -235,7 +235,7 @@ static int dwt97_inv_1d(int32_t *x, uint32_t n, double *fbuf)
  * ========================================================================= */
 
 /** Maximum of two values. */
-static uint32_t u32max(uint32_t a, uint32_t b) { return a > b ? a : b; }
+static uint32_t uint32_max(uint32_t a, uint32_t b) { return a > b ? a : b; }
 
 int opj_dwt3d_fwd(int32_t *data,
                   uint32_t w, uint32_t h, uint32_t d,
@@ -245,7 +245,7 @@ int opj_dwt3d_fwd(int32_t *data,
     if (!data || w == 0 || h == 0 || d == 0)
         return 0;
 
-    uint32_t max_len = u32max(u32max(w, h), d);
+    uint32_t max_len = uint32_max(uint32_max(w, h), d);
     int32_t  *scratch_i = NULL;
     double   *scratch_f = NULL;
 
@@ -259,7 +259,7 @@ int opj_dwt3d_fwd(int32_t *data,
 
     /* Current sub-band extents for recursive decomposition */
     uint32_t cur_w = w, cur_h = h, cur_d = d;
-    uint32_t levels = u32max(u32max(nx, ny), nz);
+    uint32_t levels = uint32_max(uint32_max(nx, ny), nz);
 
     for (uint32_t lev = 0; lev < levels; lev++) {
         uint32_t do_x = (lev < nx) ? 1 : 0;
@@ -369,7 +369,7 @@ int opj_dwt3d_inv(int32_t *data,
         return 0;
 
     /* Compute the subband extents at each level */
-    uint32_t levels = u32max(u32max(nx, ny), nz);
+    uint32_t levels = uint32_max(uint32_max(nx, ny), nz);
 
     /* Store the subband sizes so we can invert from coarsest to finest */
     uint32_t *sw = (uint32_t *)opj_jp3d_malloc((levels + 1) * sizeof(uint32_t));
@@ -387,7 +387,7 @@ int opj_dwt3d_inv(int32_t *data,
         sd[lev + 1] = (lev < nz) ? (sd[lev] + 1) / 2 : sd[lev];
     }
 
-    uint32_t max_len = u32max(u32max(w, h), d);
+    uint32_t max_len = uint32_max(uint32_max(w, h), d);
 
     /* Apply inverse from coarsest (levels) to finest (0) */
     for (int32_t lev = (int32_t)levels - 1; lev >= 0; lev--) {
