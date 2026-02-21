@@ -6,15 +6,27 @@
 include(CheckCCompilerFlag)
 
 # SSE4.1
-check_c_compiler_flag("-msse4.1" COMPILER_HAS_SSE41)
-if(COMPILER_HAS_SSE41 AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-9]86"))
+if(MSVC AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-9]86"))
+    # MSVC x64 supports SSE4.1 intrinsics without special flags
     set(OPJ_JP3D_HAVE_SSE41 ON)
+else()
+    check_c_compiler_flag("-msse4.1" COMPILER_HAS_SSE41)
+    if(COMPILER_HAS_SSE41 AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-9]86"))
+        set(OPJ_JP3D_HAVE_SSE41 ON)
+    endif()
 endif()
 
 # AVX2
-check_c_compiler_flag("-mavx2" COMPILER_HAS_AVX2)
-if(COMPILER_HAS_AVX2 AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
-    set(OPJ_JP3D_HAVE_AVX2 ON)
+if(MSVC AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
+    check_c_compiler_flag("/arch:AVX2" COMPILER_HAS_AVX2_MSVC)
+    if(COMPILER_HAS_AVX2_MSVC)
+        set(OPJ_JP3D_HAVE_AVX2 ON)
+    endif()
+else()
+    check_c_compiler_flag("-mavx2" COMPILER_HAS_AVX2)
+    if(COMPILER_HAS_AVX2 AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
+        set(OPJ_JP3D_HAVE_AVX2 ON)
+    endif()
 endif()
 
 # NEON (AArch64 — always present on 64-bit Arm)
@@ -83,14 +95,21 @@ endif()
 # ---------------------------------------------------------------------------
 if(OPJ_JP3D_HAVE_SSE41)
     target_compile_definitions(openjp3d PUBLIC OPJ_JP3D_HAVE_SSE41)
-    set_source_files_properties(opj_dwt3d_sse41.c
-        PROPERTIES COMPILE_FLAGS "-msse4.1")
+    if(NOT MSVC)
+        set_source_files_properties(opj_dwt3d_sse41.c
+            PROPERTIES COMPILE_FLAGS "-msse4.1")
+    endif()
 endif()
 
 if(OPJ_JP3D_HAVE_AVX2)
     target_compile_definitions(openjp3d PUBLIC OPJ_JP3D_HAVE_AVX2)
-    set_source_files_properties(opj_dwt3d_avx2.c
-        PROPERTIES COMPILE_FLAGS "-mavx2")
+    if(MSVC)
+        set_source_files_properties(opj_dwt3d_avx2.c
+            PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+    else()
+        set_source_files_properties(opj_dwt3d_avx2.c
+            PROPERTIES COMPILE_FLAGS "-mavx2")
+    endif()
 endif()
 
 if(OPJ_JP3D_HAVE_NEON)

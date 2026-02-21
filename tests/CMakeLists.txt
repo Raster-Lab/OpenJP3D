@@ -110,5 +110,5 @@ if(BUILD_CLI_TOOLS)
         ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
     target_link_libraries(test_cli PRIVATE openjp3d)
     add_test(NAME cli COMMAND test_cli
-        ${CMAKE_BINARY_DIR}/src/bin/jp3d)
+        $<TARGET_FILE_DIR:opj_jp3d_compress>)
 endif()

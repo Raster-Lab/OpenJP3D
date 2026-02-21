@@ -40,6 +40,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define NULL_DEVICE "NUL"
+#else
+#define NULL_DEVICE "/dev/null"
+#endif
+
 static int tests_run    = 0;
 static int tests_passed = 0;
 
@@ -60,6 +66,7 @@ static char compress_path[1024];
 static char decompress_path[1024];
 static char dump_path[1024];
 static char transcode_path[1024];
+static char temp_dir[512];
 
 /* ----------------------------------------------------------------------- */
 /* Helpers                                                                 */
@@ -124,9 +131,10 @@ static int file_nonempty(const char *path)
 /** 1. Basic compress/decompress round-trip (8-bit, 4x4x4). */
 static int test_roundtrip_8bit(void)
 {
-    const char *raw_in   = "/tmp/cli_rt8_in.raw";
-    const char *jp3d     = "/tmp/cli_rt8.jp3d";
-    const char *raw_out  = "/tmp/cli_rt8_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_rt8_in.raw", temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_rt8.jp3d",   temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_rt8_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 4, 4, 4, 8, 0)) return 0;
 
@@ -148,9 +156,10 @@ static int test_roundtrip_8bit(void)
 /** 2. 16-bit compress/decompress round-trip. */
 static int test_roundtrip_16bit(void)
 {
-    const char *raw_in   = "/tmp/cli_rt16_in.raw";
-    const char *jp3d     = "/tmp/cli_rt16.jp3d";
-    const char *raw_out  = "/tmp/cli_rt16_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_rt16_in.raw", temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_rt16.jp3d",   temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_rt16_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 8, 8, 4, 16, 0)) return 0;
 
@@ -171,9 +180,10 @@ static int test_roundtrip_16bit(void)
 /** 3. HTJ2K compress/decompress round-trip. */
 static int test_roundtrip_htj2k(void)
 {
-    const char *raw_in   = "/tmp/cli_rtht_in.raw";
-    const char *jp3d     = "/tmp/cli_rtht.jp3d";
-    const char *raw_out  = "/tmp/cli_rtht_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_rtht_in.raw", temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_rtht.jp3d",   temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_rtht_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 8, 8, 4, 8, 0)) return 0;
 
@@ -194,9 +204,10 @@ static int test_roundtrip_htj2k(void)
 /** 4. Signed samples round-trip. */
 static int test_roundtrip_signed(void)
 {
-    const char *raw_in   = "/tmp/cli_rts_in.raw";
-    const char *jp3d     = "/tmp/cli_rts.jp3d";
-    const char *raw_out  = "/tmp/cli_rts_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_rts_in.raw", temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_rts.jp3d",   temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_rts_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 4, 4, 4, 8, 1)) return 0;
 
@@ -217,8 +228,10 @@ static int test_roundtrip_signed(void)
 /** 5. Dump tool produces output. */
 static int test_dump_output(void)
 {
-    const char *raw_in = "/tmp/cli_dump_in.raw";
-    const char *jp3d   = "/tmp/cli_dump.jp3d";
+    char raw_in[512], jp3d[512], dump_out[512];
+    snprintf(raw_in,   sizeof(raw_in),   "%s/cli_dump_in.raw",  temp_dir);
+    snprintf(jp3d,     sizeof(jp3d),     "%s/cli_dump.jp3d",    temp_dir);
+    snprintf(dump_out, sizeof(dump_out), "%s/cli_dump_out.txt", temp_dir);
 
     if (!create_test_raw(raw_in, 4, 4, 4, 8, 0)) return 0;
 
@@ -229,14 +242,14 @@ static int test_dump_output(void)
     if (system(cmd) != 0) return 0;
 
     snprintf(cmd, sizeof(cmd),
-             "%s -i %s > /tmp/cli_dump_out.txt",
-             dump_path, jp3d);
+             "%s -i %s > %s",
+             dump_path, jp3d, dump_out);
     if (system(cmd) != 0) return 0;
 
-    if (!file_nonempty("/tmp/cli_dump_out.txt")) return 0;
+    if (!file_nonempty(dump_out)) return 0;
 
     /* Verify the dump contains expected markers */
-    FILE *fp = fopen("/tmp/cli_dump_out.txt", "r");
+    FILE *fp = fopen(dump_out, "r");
     if (!fp) return 0;
     char buf[4096];
     size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
@@ -257,10 +270,11 @@ static int test_dump_output(void)
 /** 6. Transcode EBCOT -> HTJ2K round-trip. */
 static int test_transcode_roundtrip(void)
 {
-    const char *raw_in   = "/tmp/cli_tc_in.raw";
-    const char *jp3d_eb  = "/tmp/cli_tc_ebcot.jp3d";
-    const char *jp3d_ht  = "/tmp/cli_tc_htj2k.jp3d";
-    const char *raw_out  = "/tmp/cli_tc_out.raw";
+    char raw_in[512], jp3d_eb[512], jp3d_ht[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_tc_in.raw",      temp_dir);
+    snprintf(jp3d_eb, sizeof(jp3d_eb), "%s/cli_tc_ebcot.jp3d",  temp_dir);
+    snprintf(jp3d_ht, sizeof(jp3d_ht), "%s/cli_tc_htj2k.jp3d",  temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_tc_out.raw",     temp_dir);
 
     if (!create_test_raw(raw_in, 8, 8, 4, 8, 0)) return 0;
 
@@ -292,19 +306,19 @@ static int test_help_exit_code(void)
     char cmd[2048];
     int ret;
 
-    snprintf(cmd, sizeof(cmd), "%s --help > /dev/null", compress_path);
+    snprintf(cmd, sizeof(cmd), "%s --help > " NULL_DEVICE, compress_path);
     ret = system(cmd);
     if (ret != 0) return 0;
 
-    snprintf(cmd, sizeof(cmd), "%s --help > /dev/null", decompress_path);
+    snprintf(cmd, sizeof(cmd), "%s --help > " NULL_DEVICE, decompress_path);
     ret = system(cmd);
     if (ret != 0) return 0;
 
-    snprintf(cmd, sizeof(cmd), "%s --help > /dev/null", dump_path);
+    snprintf(cmd, sizeof(cmd), "%s --help > " NULL_DEVICE, dump_path);
     ret = system(cmd);
     if (ret != 0) return 0;
 
-    snprintf(cmd, sizeof(cmd), "%s --help > /dev/null", transcode_path);
+    snprintf(cmd, sizeof(cmd), "%s --help > " NULL_DEVICE, transcode_path);
     ret = system(cmd);
     if (ret != 0) return 0;
 
@@ -314,11 +328,14 @@ static int test_help_exit_code(void)
 /** 8. --version returns 0 and contains version string. */
 static int test_version_output(void)
 {
+    char ver_out[512];
+    snprintf(ver_out, sizeof(ver_out), "%s/cli_ver.txt", temp_dir);
+
     char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "%s --version > /tmp/cli_ver.txt", compress_path);
+    snprintf(cmd, sizeof(cmd), "%s --version > %s", compress_path, ver_out);
     if (system(cmd) != 0) return 0;
 
-    FILE *fp = fopen("/tmp/cli_ver.txt", "r");
+    FILE *fp = fopen(ver_out, "r");
     if (!fp) return 0;
     char buf[256];
     if (!fgets(buf, sizeof(buf), fp)) { fclose(fp); return 0; }
@@ -333,16 +350,16 @@ static int test_missing_args(void)
 {
     char cmd[2048];
 
-    snprintf(cmd, sizeof(cmd), "%s 2>/dev/null", compress_path);
+    snprintf(cmd, sizeof(cmd), "%s 2>" NULL_DEVICE, compress_path);
     if (system(cmd) == 0) return 0; /* should fail */
 
-    snprintf(cmd, sizeof(cmd), "%s 2>/dev/null", decompress_path);
+    snprintf(cmd, sizeof(cmd), "%s 2>" NULL_DEVICE, decompress_path);
     if (system(cmd) == 0) return 0;
 
-    snprintf(cmd, sizeof(cmd), "%s 2>/dev/null", dump_path);
+    snprintf(cmd, sizeof(cmd), "%s 2>" NULL_DEVICE, dump_path);
     if (system(cmd) == 0) return 0;
 
-    snprintf(cmd, sizeof(cmd), "%s 2>/dev/null", transcode_path);
+    snprintf(cmd, sizeof(cmd), "%s 2>" NULL_DEVICE, transcode_path);
     if (system(cmd) == 0) return 0;
 
     return 1;
@@ -351,20 +368,21 @@ static int test_missing_args(void)
 /** 10. Verbose mode doesn't crash. */
 static int test_verbose_mode(void)
 {
-    const char *raw_in   = "/tmp/cli_verb_in.raw";
-    const char *jp3d     = "/tmp/cli_verb.jp3d";
-    const char *raw_out  = "/tmp/cli_verb_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_verb_in.raw", temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_verb.jp3d",   temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_verb_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 4, 4, 4, 8, 0)) return 0;
 
     char cmd[2048];
     snprintf(cmd, sizeof(cmd),
-             "%s -i %s -o %s -W 4 -H 4 -D 4 -p 8 -v 2>/dev/null",
+             "%s -i %s -o %s -W 4 -H 4 -D 4 -p 8 -v 2>" NULL_DEVICE,
              compress_path, raw_in, jp3d);
     if (system(cmd) != 0) return 0;
 
     snprintf(cmd, sizeof(cmd),
-             "%s -i %s -o %s -v 2>/dev/null",
+             "%s -i %s -o %s -v 2>" NULL_DEVICE,
              decompress_path, jp3d, raw_out);
     if (system(cmd) != 0) return 0;
 
@@ -374,8 +392,10 @@ static int test_verbose_mode(void)
 /** 11. Dump shows correct volume size. */
 static int test_dump_volume_size(void)
 {
-    const char *raw_in = "/tmp/cli_dsz_in.raw";
-    const char *jp3d   = "/tmp/cli_dsz.jp3d";
+    char raw_in[512], jp3d[512], dsz_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_dsz_in.raw",  temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_dsz.jp3d",    temp_dir);
+    snprintf(dsz_out, sizeof(dsz_out), "%s/cli_dsz_out.txt", temp_dir);
 
     if (!create_test_raw(raw_in, 16, 8, 4, 8, 0)) return 0;
 
@@ -386,11 +406,11 @@ static int test_dump_volume_size(void)
     if (system(cmd) != 0) return 0;
 
     snprintf(cmd, sizeof(cmd),
-             "%s -i %s > /tmp/cli_dsz_out.txt",
-             dump_path, jp3d);
+             "%s -i %s > %s",
+             dump_path, jp3d, dsz_out);
     if (system(cmd) != 0) return 0;
 
-    FILE *fp = fopen("/tmp/cli_dsz_out.txt", "r");
+    FILE *fp = fopen(dsz_out, "r");
     if (!fp) return 0;
     char buf[4096];
     size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
@@ -404,9 +424,10 @@ static int test_dump_volume_size(void)
 /** 12. Custom decomposition levels. */
 static int test_custom_decomp(void)
 {
-    const char *raw_in   = "/tmp/cli_cd_in.raw";
-    const char *jp3d     = "/tmp/cli_cd.jp3d";
-    const char *raw_out  = "/tmp/cli_cd_out.raw";
+    char raw_in[512], jp3d[512], raw_out[512];
+    snprintf(raw_in,  sizeof(raw_in),  "%s/cli_cd_in.raw",  temp_dir);
+    snprintf(jp3d,    sizeof(jp3d),    "%s/cli_cd.jp3d",    temp_dir);
+    snprintf(raw_out, sizeof(raw_out), "%s/cli_cd_out.raw", temp_dir);
 
     if (!create_test_raw(raw_in, 8, 8, 8, 8, 0)) return 0;
 
@@ -430,6 +451,17 @@ static int test_custom_decomp(void)
 
 int main(int argc, char *argv[])
 {
+    /* Determine a cross-platform temporary directory */
+    const char *td = NULL;
+#ifdef _WIN32
+    td = getenv("TEMP");
+    if (!td) td = getenv("TMP");
+#else
+    td = getenv("TMPDIR");
+#endif
+    if (!td) td = "/tmp";
+    snprintf(temp_dir, sizeof(temp_dir), "%s", td);
+
     /* Expect tool paths from environment or construct from build dir */
     const char *bindir = NULL;
     if (argc > 1) {
