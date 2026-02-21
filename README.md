@@ -14,6 +14,8 @@ compression (ISO/IEC 15444-10), built as an extension of the
 - SIMD-optimised paths for x86-64 (SSE4.1/AVX2) and AArch64 (NEON)
 - Command-line tools: `opj_jp3d_compress`, `opj_jp3d_decompress`,
   `opj_jp3d_dump`, `opj_jp3d_transcode`, `opj_jpip3d_server`
+- Interactive GUI test application (`opj_jp3d_gui`) built with
+  Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`)
 
 ## Building
 
@@ -37,6 +39,7 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 5** — Command-Line Tools ✅
 - **Phase 6** — Documentation & Examples ✅
 - **Phase 7** — Integration Testing & Release ✅
+- **Phase 8A** — GUI Application Framework & UI Shell ✅ *(in progress — Phase 8)*
 
 **Current release: v1.0.0**
 

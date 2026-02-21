@@ -25,6 +25,7 @@ option(ENABLE_OPENMP    "Enable OpenMP multi-threading"          OFF)
 option(BUILD_BENCHMARKS "Build the benchmark suite"              OFF)
 option(BUILD_DOC_EXAMPLES "Build documentation example programs" OFF)
 option(BUILD_FUZZ      "Build libFuzzer harnesses (Clang only)" OFF)
+option(BUILD_GUI_TOOLS "Build interactive GUI test application (Dear ImGui + SDL2)" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -73,6 +74,10 @@ endif()
 
 if(BUILD_FUZZ)
     add_subdirectory(tools/fuzz)
+endif()
+
+if(BUILD_GUI_TOOLS)
+    add_subdirectory(src/bin/jp3d/gui)
 endif()
 
 # ---------------------------------------------------------------------------

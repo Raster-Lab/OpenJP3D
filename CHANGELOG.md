@@ -5,6 +5,28 @@ All notable changes to the OpenJP3D project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Phase 8A: Application Framework & UI Shell**
+  - **8A.1 GUI toolkit selection**: Evaluated Qt 6, GTK 4, wxWidgets, and
+    Dear ImGui + SDL2. Selected Dear ImGui (v1.91.8) + SDL2 + OpenGL 3.3
+    for minimal dependency footprint and immediate-mode rendering. Rationale
+    documented in `doc/gui-toolkit-rationale.md`.
+  - **8A.2 Application scaffold**: Created `opj_jp3d_gui` target under
+    `src/bin/jp3d/gui/`. Added `BUILD_GUI_TOOLS` CMake option (default OFF)
+    with FetchContent for Dear ImGui (docking branch) and SDL2. C++ enabled
+    only when `BUILD_GUI_TOOLS=ON`; core library build is unaffected.
+  - **8A.3 Main window layout**: Dockable panel layout with menu bar
+    (File/View/Tools/Help), toolbar (Open, Encode, Decode, Transcode,
+    Round-Trip, Theme toggle), file-browser panel, volume-info panel,
+    slice/volume viewport, and log/console panel. Panels are resizable
+    and dockable via Dear ImGui's built-in docking system.
+  - **8A.4 Theme & accessibility**: Dark and light themes with WCAG 2.1 AA
+    contrast compliance. Keyboard navigation enabled (ImGuiConfigFlags_NavEnableKeyboard).
+    Theme toggle via View menu, toolbar button, or Ctrl+T shortcut.
+
 ## [1.0.0] - 2026-02-21
 
 ### Added
