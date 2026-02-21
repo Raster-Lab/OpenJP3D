@@ -357,6 +357,36 @@ arrays without requiring a compiled Python extension.
 
 ---
 
+## Phase 11 — R Bindings & Scientific Computing Integration ✅ Complete
+
+**Goal:** Expose the OpenJP3D codec to the R statistical computing ecosystem
+via bindings that use a thin C wrapper to dynamically load the pre-built
+shared library, enabling encoding and decoding of 3-D volumes directly from
+R integer arrays.
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 11.1 | R package scaffold | `r/openjp3d/` package with `DESCRIPTION`, `NAMESPACE`, and `LICENSE`. Installable via `R CMD INSTALL r/openjp3d` or `devtools::install("r/openjp3d")`. BSD-2-Clause licence header on all R and C source files. |
+| 11.2 | Thin C wrapper (`src/openjp3d_wrap.c`) | Cross-platform loader using `dlopen`/`LoadLibrary` to open the openjp3d shared library at runtime (not at compile time). Search order: `OPENJP3D_LIBRARY` env var → `lib/` next to the installed package → OS default loader. Registers `.Call()` entry points via `R_init_openjp3d`. |
+| 11.3 | High-level R API (`R/openjp3d.R`) | `encode(volume, params, prec, sgnd, on_message)` — accepts `(D,H,W)` or `(D,H,W,C)` integer arrays; returns `raw` JP3D codestream. `decode(data, verbose, on_message)` — accepts `raw` vector; returns integer array with `dtype` attribute. `transcode_to_ht(data, params, on_message)` — wraps `opj_jp3d_transcode_to_ht()`. `get_version()` — returns native library version. `EncodeParams(...)` S3 constructor. Data-layout helpers convert R column-major ↔ C row-major via `aperm()`. |
+| 11.4 | Package init (`R/zzz.R`) | `.onLoad()` resolves the shared library at package load time and calls `ojp3d_load_lib()`. |
+| 11.5 | CMake integration (`r/CMakeLists.txt`) | `BUILD_R_BINDINGS` CMake option (default OFF). When ON, registers a `test_r_bindings` CTest target that installs the package into a build-tree library directory and runs `tests/test_r.R` with `OPENJP3D_LIBRARY` set automatically. Requires `BUILD_SHARED_LIBS=ON`; skips gracefully when R is not found. |
+| 11.6 | R test suite (`tests/test_r.R`) | 43 test cases (base R, no external test framework required) covering: version string format, all exported constants, `EncodeParams` construction and `_to_c()`, lossless round-trips for all five supported precisions (8/16/32-bit signed and unsigned), multi-component (3- and 4-channel) volumes, single-slice edge case, non-square dimensions, large volumes (16×16×16), tiled encoding, SOC marker prefix check, HTJ2K round-trip, lossy 9/7 encoding, `transcode_to_ht` with and without params, data layout correctness (corner voxels, gradient pattern), message callback, `dtype` attribute on decoded arrays, and error handling (invalid codestream, 2-D input, non-raw data). |
+| 11.7 | Package README (`r/openjp3d/README.md`) | Installation instructions, library search-order documentation, quick-start examples (lossless, lossy, HTJ2K, transcode, multi-component, callback), and full API reference table. |
+
+### Exit Criteria
+
+- `R CMD INSTALL r/openjp3d` succeeds on Linux, macOS, and Windows.
+- `Rscript tests/test_r.R` passes with the shared library built (`BUILD_SHARED_LIBS=ON`).
+- `openjp3d::encode()` / `openjp3d::decode()` produce lossless round-trips for all supported precisions.
+- `openjp3d::transcode_to_ht()` produces a decodable codestream.
+- No memory leaks (library-side allocations freed via `opj_jp3d_free()`).
+- Package installs cleanly on Linux, macOS, and Windows.
+
+---
+
 ## Dependency & Risk Summary
 
 | Risk | Mitigation |
@@ -386,7 +416,9 @@ arrays without requiring a compiled Python extension.
 | 7 | Integration Testing & Release | 3–4 weeks |
 | 8 | Interactive GUI Test Application | 6–8 weeks |
 | 9 | Python Bindings & NumPy Integration | 1–2 weeks |
-| | **Total (sequential)** | **~36–50 weeks** |
+| 10 | Julia Bindings & Scientific Computing Integration | 1–2 weeks |
+| 11 | R Bindings & Scientific Computing Integration | 1–2 weeks |
+| | **Total (sequential)** | **~39–56 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
 > potentially reducing total wall-clock time by 6–10 weeks.

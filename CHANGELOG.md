@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 11: R Bindings & Scientific Computing Integration**
+  - **11.1 R package scaffold**: `r/openjp3d/` package with `DESCRIPTION`,
+    `NAMESPACE`, and `LICENSE`.  Installable via
+    `R CMD INSTALL r/openjp3d` or `devtools::install("r/openjp3d")`.
+    BSD-2-Clause licence header on all R and C source files.
+  - **11.2 Thin C wrapper** (`r/openjp3d/src/openjp3d_wrap.c`):
+    cross-platform loader using `dlopen`/`LoadLibrary` to open the
+    openjp3d shared library at runtime (not at compile/link time).
+    Provides five `.Call()` entry points registered via `R_init_openjp3d`.
+    Search order: `OPENJP3D_LIBRARY` env var → `lib/` subdirectory next to
+    the installed package → OS default loader.  `src/Makevars` links `-ldl`
+    on Linux/macOS; `src/Makevars.win` uses `LoadLibrary` (auto-linked).
+  - **11.3 High-level R API** (`r/openjp3d/R/openjp3d.R`):
+    - `encode(volume, params, prec, sgnd, on_message)` — accepts `(D,H,W)`
+      or `(D,H,W,C)` integer arrays; returns `raw` JP3D codestream.
+    - `decode(data, verbose, on_message)` — accepts `raw` vector; returns
+      integer array with `dtype` attribute (`"uint8"`, `"int8"`, `"uint16"`,
+      `"int16"`, or `"int32"`).
+    - `transcode_to_ht(data, params, on_message)` — wraps
+      `opj_jp3d_transcode_to_ht()`.
+    - `get_version()` — returns the native library version string.
+    - `EncodeParams(...)` — S3 constructor mirroring
+      `opj_jp3d_enc_params_t` with R-friendly defaults.
+    - Data-layout helpers convert R column-major ↔ C row-major via
+      `aperm(arr, c(3,2,1))`.
+    - Module-level constants: `FILTER_53`, `FILTER_97`, `USE_HTJ2K`,
+      `CS_UNKNOWN`, `CS_SRGB`, `CS_GRAY`, `CS_YUV`, `MSG_INFO`,
+      `MSG_WARNING`, `MSG_ERROR`.
+  - **11.4 Package init** (`r/openjp3d/R/zzz.R`): `.onLoad()` resolves the
+    shared library at package load time and calls `ojp3d_load_lib()`.
+  - **11.5 CMake integration** (`r/CMakeLists.txt`):
+    `BUILD_R_BINDINGS` option added to root `CMakeLists.txt` (default OFF).
+    When ON, registers a `test_r_bindings` CTest target that installs the
+    package into `${CMAKE_BINARY_DIR}/r_library` and runs
+    `tests/test_r.R` with `OPENJP3D_LIBRARY` set via generator expressions.
+    Requires `BUILD_SHARED_LIBS=ON`; skips gracefully when R is not found.
+  - **11.6 R test suite** (`tests/test_r.R`): 43 test cases (base R only,
+    no external test framework required) covering version string format,
+    all exported constants, `EncodeParams` construction, lossless
+    round-trips for all five supported precisions, multi-component volumes,
+    single-slice edge case, non-square dimensions, 16×16×16 large volume,
+    tiled encoding, SOC marker prefix check, HTJ2K round-trip, lossy 9/7
+    encoding, `transcode_to_ht` with/without params, corner-voxel and
+    gradient data-layout correctness, message callback, `dtype` attribute,
+    and error-handling cases.
+  - **11.7 Package README** (`r/openjp3d/README.md`): installation steps,
+    library search-order documentation, quick-start examples (lossless,
+    lossy, HTJ2K, transcode, multi-component, callback), and full API
+    reference table.
+  - New files: `r/openjp3d/DESCRIPTION`, `r/openjp3d/NAMESPACE`,
+    `r/openjp3d/LICENSE`, `r/openjp3d/R/openjp3d.R`, `r/openjp3d/R/zzz.R`,
+    `r/openjp3d/src/openjp3d_wrap.c`, `r/openjp3d/src/Makevars`,
+    `r/openjp3d/src/Makevars.win`, `r/openjp3d/README.md`,
+    `r/CMakeLists.txt`, `tests/test_r.R`.
+    `BUILD_R_BINDINGS` CMake option added to root `CMakeLists.txt`.
+
 - **Phase 10: Julia Bindings & Scientific Computing Integration**
   - **10.1 Julia package scaffold**: `julia/OpenJP3D.jl/` package with
     `Project.toml` (Julia ≥ 1.6).  Installable via

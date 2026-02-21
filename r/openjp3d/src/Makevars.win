@@ -1,0 +1,3 @@
+# Windows uses LoadLibrary/GetProcAddress from kernel32 (auto-linked).
+# No extra libraries are needed.
+PKG_LIBS =
