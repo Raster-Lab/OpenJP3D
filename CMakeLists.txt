@@ -36,6 +36,9 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Export compile_commands.json for clang-tidy / editors
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# libm is required on Unix but is part of the CRT on MSVC.
+find_library(MATH_LIBRARY m)
+
 # ---------------------------------------------------------------------------
 # Subdirectories
 # ---------------------------------------------------------------------------

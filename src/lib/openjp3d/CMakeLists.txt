@@ -74,7 +74,9 @@ target_include_directories(openjp3d
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(openjp3d PRIVATE m)
+if(MATH_LIBRARY)
+    target_link_libraries(openjp3d PRIVATE ${MATH_LIBRARY})
+endif()
 
 # ---------------------------------------------------------------------------
 # SIMD compile definitions and per-file flags
