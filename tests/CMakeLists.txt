@@ -46,3 +46,12 @@ target_include_directories(test_raw_io PRIVATE
 target_link_libraries(test_raw_io PRIVATE openjp3d)
 add_test(NAME raw_io COMMAND test_raw_io)
 
+# ---------------------------------------------------------------------------
+# HTJ2K (Phase 2) tests
+# ---------------------------------------------------------------------------
+add_executable(test_htj2k test_htj2k.c)
+target_include_directories(test_htj2k PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
+target_link_libraries(test_htj2k PRIVATE openjp3d)
+add_test(NAME htj2k COMMAND test_htj2k)
+

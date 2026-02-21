@@ -134,6 +134,15 @@ typedef void (*opj_jp3d_msg_callback_t)(opj_jp3d_msg_level_t level,
 /** @brief Lossy 9/7 floating-point lifting filter. */
 #define OPJ_JP3D_FILTER_97  1
 
+/**
+ * @brief Flag for opj_jp3d_enc_params_t::use_htj2k.
+ *
+ * When set, the encoder uses the High-Throughput block coder (HTJ2K / Part 15
+ * adapted to 3-D code-blocks) instead of the EBCOT Tier-1 coder.
+ * The decoder auto-detects the coding mode from the codestream marker.
+ */
+#define OPJ_JP3D_USE_HTJ2K  1
+
 /** @brief Unknown colour space. */
 #define OPJ_JP3D_CS_UNKNOWN 0
 /** @brief sRGB. */
@@ -195,6 +204,7 @@ typedef struct opj_jp3d_enc_params {
     int32_t  filter;               /**< OPJ_JP3D_FILTER_53 or _97. */
     uint32_t num_layers;           /**< Number of quality layers. */
     float    target_rate;          /**< Target bits/sample (0 = lossless). */
+    int32_t  use_htj2k;            /**< OPJ_JP3D_USE_HTJ2K to enable HT block coder. */
     int32_t  verbose;              /**< Non-zero = enable info messages. */
 } opj_jp3d_enc_params_t;
 
@@ -320,6 +330,36 @@ OPJ_JP3D_API opj_volume_t *opj_jp3d_decode(
     const uint8_t               *data,
     size_t                       size,
     const opj_jp3d_dec_params_t *params,
+    opj_jp3d_msg_callback_t      callback,
+    void                        *callback_data);
+
+/**
+ * @brief Losslessly transcode a JP3D codestream from EBCOT to HT block coding.
+ *
+ * Decodes @p src_data using EBCOT Tier-1, then re-encodes the recovered
+ * volume with the HTJ2K high-throughput block coder, preserving the tile
+ * structure and DWT parameters.  The output codestream is functionally
+ * equivalent to the input (same decoded pixel values) but uses the HT
+ * block coder for every tile.
+ *
+ * @param src_data      Source JP3D codestream bytes (EBCOT or HT).
+ * @param src_size      Number of bytes in @p src_data.
+ * @param enc_params    Encoder parameters to use for the transcoded stream.
+ *                      The @c use_htj2k field is forced to @c OPJ_JP3D_USE_HTJ2K.
+ *                      Pass NULL to derive parameters from the source header.
+ * @param out_data      Output: pointer to the transcoded codestream bytes.
+ *                      Caller must free with opj_jp3d_free().
+ * @param out_size      Output: number of bytes in @p *out_data.
+ * @param callback      Optional message callback (may be NULL).
+ * @param callback_data User data for @p callback.
+ * @return OPJ_JP3D_TRUE on success, OPJ_JP3D_FALSE on failure.
+ */
+OPJ_JP3D_API opj_jp3d_bool_t opj_jp3d_transcode_to_ht(
+    const uint8_t               *src_data,
+    size_t                       src_size,
+    const opj_jp3d_enc_params_t *enc_params,
+    uint8_t                    **out_data,
+    size_t                      *out_size,
     opj_jp3d_msg_callback_t      callback,
     void                        *callback_data);
 

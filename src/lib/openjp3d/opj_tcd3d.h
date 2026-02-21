@@ -56,6 +56,7 @@ extern "C" {
  * @param ny         DWT levels along Y.
  * @param nz         DWT levels along Z.
  * @param filter     OPJ_JP3D_FILTER_53 or OPJ_JP3D_FILTER_97.
+ * @param use_htj2k  Non-zero to use the HT block coder instead of EBCOT.
  * @param out        Destination buffer.
  * @return 1 on success, 0 on failure.
  */
@@ -65,6 +66,7 @@ int opj_tcd3d_encode_tile(
     uint32_t cblk_w, uint32_t cblk_h, uint32_t cblk_d,
     uint32_t nx, uint32_t ny, uint32_t nz,
     int32_t filter,
+    int32_t use_htj2k,
     opj_buf_t *out);
 
 /**
@@ -84,6 +86,7 @@ int opj_tcd3d_encode_tile(
  * @param ny         DWT levels along Y.
  * @param nz         DWT levels along Z.
  * @param filter     OPJ_JP3D_FILTER_53 or OPJ_JP3D_FILTER_97.
+ * @param use_htj2k  Non-zero to use the HT block coder instead of EBCOT.
  * @return 1 on success, 0 on failure.
  */
 int opj_tcd3d_decode_tile(
@@ -92,7 +95,8 @@ int opj_tcd3d_decode_tile(
     uint32_t tw, uint32_t th, uint32_t td,
     uint32_t cblk_w, uint32_t cblk_h, uint32_t cblk_d,
     uint32_t nx, uint32_t ny, uint32_t nz,
-    int32_t filter);
+    int32_t filter,
+    int32_t use_htj2k);
 
 #ifdef __cplusplus
 }

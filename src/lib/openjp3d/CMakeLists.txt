@@ -6,6 +6,7 @@ set(OPENJP3D_SOURCES
     opj_volume.c
     opj_dwt3d.c
     opj_t1_3d.c
+    opj_ht3d.c
     opj_t2_3d.c
     opj_cs3d.c
     opj_raw_io.c
@@ -19,6 +20,7 @@ set(OPENJP3D_HEADERS
     opj_volume.h
     opj_dwt3d.h
     opj_t1_3d.h
+    opj_ht3d.h
     opj_t2_3d.h
     opj_cs3d.h
     opj_raw_io.h
