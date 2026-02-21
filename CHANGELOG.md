@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 12: MATLAB/Octave Bindings**
+  - **12.1 MEX C wrapper** (`matlab/openjp3d/src/openjp3d_mex.c`):
+    single `mexFunction` entry point dispatching on a command string
+    (`load_lib`, `get_version`, `encode`, `decode`, `transcode`).
+    Cross-platform runtime loading via `dlopen`/`LoadLibrary`; no
+    link-time dependency on the OpenJP3D shared library.  Optional
+    MATLAB function-handle message callback via `mexCallMATLAB`.
+  - **12.2 `EncodeParams` classdef** (`matlab/openjp3d/EncodeParams.m`):
+    MATLAB value class mirroring `opj_jp3d_enc_params_t` with sensible
+    lossless defaults and a `to_c()` method that packs fields into the
+    `int32(13)` + `double` layout expected by the MEX wrapper.
+  - **12.3 High-level package API** (`matlab/openjp3d/+openjp3d/`):
+    - `encode(volume [,params [,options]])` — accepts `[D H W]` or
+      `[D H W C]` numeric arrays; infers `prec`/`sgnd` from MATLAB
+      class; performs column-major → row-major permutation; returns
+      `uint8` JP3D codestream.
+    - `[volume, dtype] = decode(data [,opts])` — accepts `uint8` vector;
+      reconstructs `int32` array with correct axis order; returns dtype
+      string (`'uint8'`, `'int8'`, `'uint16'`, `'int16'`, `'int32'`).
+    - `transcode_to_ht(data [,params [,opts]])` — wraps
+      `opj_jp3d_transcode_to_ht()`; forces `use_htj2k=1`.
+    - `get_version()`, `load_lib([path])` — library version and
+      runtime loader with env-var / relative-path search order.
+  - **12.4 CMake integration** (`matlab/CMakeLists.txt`):
+    `BUILD_MATLAB_BINDINGS` option; CTest targets `build_matlab_mex`
+    (via `mkoctfile --mex`) and `test_matlab_bindings` (via
+    `octave --no-gui`); falls back to MATLAB `mex`/`-batch` when
+    Octave is not found.
+  - **12.5 Test suite** (`tests/test_matlab.m`): ≥ 40 tests covering
+    version, `EncodeParams`, lossless round-trips for all precisions,
+    multi-component and single-slice volumes, tiled encoding, HTJ2K,
+    lossy encoding, transcode, data layout, callbacks, dtype inference,
+    and error handling.  Skips gracefully when the shared library is
+    unavailable.
+  - **12.6 Documentation** (`matlab/openjp3d/README.md`): installation,
+    library search order, quick-start examples, and full API reference.
+
 - **Phase 11: R Bindings & Scientific Computing Integration**
   - **11.1 R package scaffold**: `r/openjp3d/` package with `DESCRIPTION`,
     `NAMESPACE`, and `LICENSE`.  Installable via

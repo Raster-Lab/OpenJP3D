@@ -119,8 +119,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 9** — Python Bindings & NumPy Integration ✅
 - **Phase 10** — Julia Bindings & Scientific Computing Integration ✅
 - **Phase 11** — R Bindings & Scientific Computing Integration ✅
+- **Phase 12** — MATLAB/Octave Bindings ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8, 9, 10, and 11 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8, 9, 10, 11, and 12 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

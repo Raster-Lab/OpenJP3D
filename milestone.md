@@ -387,6 +387,33 @@ R integer arrays.
 
 ---
 
+## Phase 12 — MATLAB/Octave Bindings ✅ Complete
+
+**Goal:** Provide MATLAB and Octave bindings for the OpenJP3D codec, following the same
+runtime-loading pattern as the R bindings (Phase 11).
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 12.1 | MEX C wrapper | `matlab/openjp3d/src/openjp3d_mex.c`: single `mexFunction` entry point dispatching on a command string. Runtime `dlopen`/`LoadLibrary` loading; no link-time dependency on the shared library. Five commands: `load_lib`, `get_version`, `encode`, `decode`, `transcode`. Optional MATLAB function-handle callback via `mexCallMATLAB`. |
+| 12.2 | `EncodeParams` class | `matlab/openjp3d/EncodeParams.m`: MATLAB `classdef` mirroring the C encoder parameter struct with sensible defaults and a `to_c()` method. |
+| 12.3 | High-level API package | `matlab/openjp3d/+openjp3d/` namespace package: `encode`, `decode`, `transcode_to_ht`, `get_version`, `load_lib`. Handles column-major ↔ row-major permutation, class inference, and name-value option parsing. |
+| 12.4 | CMake integration | `matlab/CMakeLists.txt`: `BUILD_MATLAB_BINDINGS` option; CTest targets `build_matlab_mex` (via `mkoctfile --mex`) and `test_matlab_bindings` (via `octave --no-gui`). Falls back to MATLAB `mex` if Octave is not found. |
+| 12.5 | Test suite | `tests/test_matlab.m`: ≥ 40 tests covering version, constants, `EncodeParams`, lossless round-trips for all precisions, multi-component volumes, single-slice edge case, non-square dimensions, tiled encoding, HTJ2K, lossy encoding, transcode, data layout, callbacks, dtype inference, and error handling. Skips gracefully when the shared library is unavailable. |
+| 12.6 | Documentation | `matlab/openjp3d/README.md`: installation, library search order, quick-start examples, and full API reference. |
+
+### Exit Criteria
+
+- `mkoctfile --mex matlab/openjp3d/src/openjp3d_mex.c` succeeds on Linux, macOS, and Windows.
+- `octave --no-gui tests/test_matlab.m` passes with the shared library available via `OPENJP3D_LIBRARY`.
+- `openjp3d.encode()` / `openjp3d.decode()` produce lossless round-trips for all supported precisions.
+- `openjp3d.transcode_to_ht()` produces a decodable codestream.
+- No memory leaks (all MEX-allocated arrays destroyed; library allocations freed via `opj_jp3d_free()`).
+- Works with both Octave ≥ 6.0 and MATLAB R2019b+.
+
+---
+
 ## Dependency & Risk Summary
 
 | Risk | Mitigation |
@@ -418,6 +445,7 @@ R integer arrays.
 | 9 | Python Bindings & NumPy Integration | 1–2 weeks |
 | 10 | Julia Bindings & Scientific Computing Integration | 1–2 weeks |
 | 11 | R Bindings & Scientific Computing Integration | 1–2 weeks |
+| 12 | MATLAB/Octave Bindings | 1–2 weeks |
 | | **Total (sequential)** | **~39–56 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
