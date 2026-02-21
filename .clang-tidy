@@ -1,0 +1,17 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -readability-magic-numbers,
+  -bugprone-easily-swappable-parameters,
+  -cert-err33-c,
+  -misc-no-recursion
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+...
