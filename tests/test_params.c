@@ -74,8 +74,8 @@ int main(void)
     /* 6. get_version returns non-NULL */
     ASSERT(opj_jp3d_get_version() != NULL);
 
-    /* 7. get_version returns "0.1.0" */
-    ASSERT(strcmp(opj_jp3d_get_version(), "0.1.0") == 0);
+    /* 7. get_version returns "1.0.0" */
+    ASSERT(strcmp(opj_jp3d_get_version(), "1.0.0") == 0);
 
     /* 8. Default num_layers = 1 */
     ASSERT(enc.num_layers == 1);
