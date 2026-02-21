@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(NOT TARGET OpenJP3D::openjp3d)
+    include("${CMAKE_CURRENT_LIST_DIR}/OpenJP3DTargets.cmake")
+endif()

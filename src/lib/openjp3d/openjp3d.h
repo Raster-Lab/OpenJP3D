@@ -51,16 +51,16 @@ extern "C" {
  */
 
 /** @brief Major version number. */
-#define OPJ_JP3D_VERSION_MAJOR 0
+#define OPJ_JP3D_VERSION_MAJOR 1
 
 /** @brief Minor version number. */
-#define OPJ_JP3D_VERSION_MINOR 1
+#define OPJ_JP3D_VERSION_MINOR 0
 
 /** @brief Patch version number. */
 #define OPJ_JP3D_VERSION_PATCH 0
 
 /** @brief Full version string. */
-#define OPJ_JP3D_VERSION "0.1.0"
+#define OPJ_JP3D_VERSION "1.0.0"
 
 /*
  * ==========================================================================
