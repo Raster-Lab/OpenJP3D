@@ -164,3 +164,57 @@ When adding new files, place them in the directory that matches the above layout
 - Maintain a `CHANGELOG.md` with entries for every phase and release.
 - Keep PRs focused: one logical change per pull request.
 - Ensure `cmake --build .` succeeds on all CI targets before merging.
+
+## Documentation Maintenance
+
+Whenever a phase, feature, or milestone task is completed, **all** of the
+following documents must be updated before the PR is merged:
+
+### 1. `milestone.md`
+
+- Add a **✅ Complete** badge next to the phase heading
+  (e.g., `## Phase 1 — Core JP3D Codec (Lossless & Lossy) ✅ Complete`).
+- Do **not** remove or rewrite existing task tables; the plan is the historical
+  record.
+
+### 2. `CHANGELOG.md`
+
+- Add an entry under `## [Unreleased]` → `### Added` (or the appropriate
+  section: `Changed`, `Fixed`, `Removed`).
+- Use the format already established: a **bold phase title** followed by
+  bullet points for each deliverable, referencing the task numbers from
+  `milestone.md` (e.g., `**5.1 \`opj_jp3d_compress\`**`).
+- When tagging a release, move `[Unreleased]` entries into a versioned section
+  (e.g., `## [1.0.0] - 2026-MM-DD`).
+
+### 3. `README.md`
+
+- Keep the **Features** list current — add new capabilities as they land.
+- Update the **Project Status** section to name the most recently completed
+  phase and the phase currently in progress.
+- Add or update any **Quick-start / CLI usage** examples when new tools are
+  introduced.
+
+### 4. Other documents (as applicable)
+
+| Document | When to update |
+|----------|---------------|
+| `INSTALL.md` | New build options or dependencies are added. |
+| `AUTHORS.md` | New contributors join the project. |
+| `CODING_STYLE.md` | Conventions change or new rules are adopted. |
+| `doc/` guides & examples | API surface changes, new features need examples. |
+| Man pages (`src/bin/jp3d/*.1`) | CLI flags or behaviour change. |
+
+### Checklist template
+
+Use this checklist in every feature-completion PR to verify documentation is
+up to date:
+
+```markdown
+- [ ] `milestone.md` — phase/task marked ✅ Complete
+- [ ] `CHANGELOG.md` — entry added under `[Unreleased]`
+- [ ] `README.md` — Features / Project Status / examples updated
+- [ ] `INSTALL.md` — updated if build options changed
+- [ ] Doxygen headers — new/changed public API documented
+- [ ] Man pages — updated if CLI tools changed
+```
