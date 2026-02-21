@@ -442,7 +442,34 @@ bindings (Phases 11–12).
 
 ---
 
-## Dependency & Risk Summary
+## Phase 14 — Rust Bindings ✅ Complete
+
+**Goal:** Provide Rust bindings for the OpenJP3D codec using `libloading` for
+runtime `dlopen`/`LoadLibrary` loading, following the same pattern as the Go,
+Python, Julia, R, and MATLAB bindings (Phases 9–13).
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 14.1 | Rust crate scaffold | `rust/openjp3d/` crate with `Cargo.toml` declaring `name = "openjp3d"`, `edition = "2021"`, `libloading = "0.8"` dependency. BSD-2-Clause licence header on all source files. |
+| 14.2 | Runtime loader (`src/lib.rs`) | `libloading::Library` loaded once via `OnceLock`; `#[repr(C)]` struct mirrors for `opj_volume_comp_t`, `opj_volume_t`, `opj_jp3d_enc_params_t`, and `opj_jp3d_dec_params_t`. All entry points resolved at runtime; no link-time dependency on the shared library. Library search order: `OPENJP3D_LIBRARY` env var → `lib/` next to the executable → OS default loader. |
+| 14.3 | Callback bridge | Thread-local `TLS_CB` slot stores a fat pointer to the caller's closure for the duration of each synchronous C call. `extern "C" fn tls_callback_bridge` reads the slot and dispatches to the Rust closure. Safe lifetime management via `run_with_callback` helper. |
+| 14.4 | High-level Rust API | `load_lib(path: Option<&str>) -> Result<(), Error>` — auto-search or explicit path; idempotent. `is_loaded() -> bool`. `get_version() -> Result<String, Error>`. `encode(samples, w, h, d, num_comps, prec, signed, params, cb) -> Result<Vec<u8>, Error>`. `decode(data, params, cb) -> Result<(Vec<i32>, VolumeInfo), Error>`. `transcode_to_ht(src, params, cb) -> Result<Vec<u8>, Error>`. `default_encode_params() -> Result<EncodeParams, Error>`. |
+| 14.5 | CMake integration (`rust/CMakeLists.txt`) | `BUILD_RUST_BINDINGS` CMake option (default OFF). Verifies `cargo` is available and `BUILD_SHARED_LIBS=ON`; registers `test_rust_bindings` CTest target running `cargo test` with `OPENJP3D_LIBRARY` set automatically. |
+| 14.6 | Rust test suite (`rust/openjp3d/tests/integration_tests.rs`) | 40 test cases covering: library loading (idempotent), version string format, all exported constants, `EncodeParams` defaults and manual fields, lossless round-trips for all five supported precisions (uint8, int8, uint16, int16, int32), multi-component (3- and 4-channel) volumes, single-slice edge case, non-square dimensions, large (16×16×16) volume, tiled encoding, HTJ2K lossless, lossy 9/7 encoding, `transcode_to_ht` with and without params, SOC marker check, data-layout correctness, message callback, `VolumeInfo` fields, error handling (empty and invalid codestreams, zero dimensions, too-few samples, empty transcode source), all-zeros / all-max volumes, `is_loaded` flag, and env-var integration. Tests skip gracefully when the shared library is not available. |
+| 14.7 | Documentation (`rust/openjp3d/README.md`) | Installation instructions, library search-order documentation, quick-start examples (lossless, lossy, HTJ2K, transcode, multi-component, callback), and full API reference table. |
+
+### Exit Criteria
+
+- `cargo build` succeeds on Linux, macOS, and Windows.
+- `OPENJP3D_LIBRARY=... cargo test` passes with the shared library built (`BUILD_SHARED_LIBS=ON`).
+- `encode()` / `decode()` produce lossless round-trips for all supported precisions.
+- `transcode_to_ht()` produces a decodable codestream.
+- No memory leaks (C-allocated buffers freed via `opj_jp3d_free()`; decoded volumes freed via `opj_jp3d_destroy_volume()`).
+- Crate compiles on Linux, macOS, and Windows.
+
+---
 
 | Risk | Mitigation |
 |------|------------|
@@ -475,7 +502,8 @@ bindings (Phases 11–12).
 | 11 | R Bindings & Scientific Computing Integration | 1–2 weeks |
 | 12 | MATLAB/Octave Bindings | 1–2 weeks |
 | 13 | Go Bindings | 1–2 weeks |
-| | **Total (sequential)** | **~40–58 weeks** |
+| 14 | Rust Bindings | 1–2 weeks |
+| | **Total (sequential)** | **~41–60 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
 > potentially reducing total wall-clock time by 6–10 weeks.

@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 14: Rust Bindings**
+  - **14.1 Rust crate scaffold** (`rust/openjp3d/`): `Cargo.toml` with
+    `name = "openjp3d"`, edition 2021, `libloading = "0.8"` dependency.
+    BSD-2-Clause licence header on all source files.
+  - **14.2 Runtime loader** (`rust/openjp3d/src/lib.rs`):
+    `libloading::Library` stored in a global `OnceLock`; `#[repr(C)]`
+    struct mirrors for `opj_volume_comp_t`, `opj_volume_t`,
+    `opj_jp3d_enc_params_t`, and `opj_jp3d_dec_params_t`.  All function
+    pointers resolved at runtime via `lib.get()`; no link-time dependency
+    on the shared library.  Library search order: `OPENJP3D_LIBRARY` env
+    var → `lib/` next to the executable → OS default loader.
+  - **14.3 Callback bridge**: thread-local `TLS_CB` slot stores a fat
+    pointer to the caller's `&dyn Fn(i32, &str)` closure for the duration
+    of each synchronous C call.  `unsafe extern "C" fn tls_callback_bridge`
+    reads the slot and dispatches to the Rust closure.  `run_with_callback`
+    helper manages slot lifetime safely.
+  - **14.4 High-level Rust API**: `load_lib`, `is_loaded`, `get_version`,
+    `encode`, `decode`, `transcode_to_ht`, `default_encode_params`.
+    `EncodeParams` and `DecodeParams` structs; `VolumeInfo` metadata.
+    All fallible functions return `Result<_, Error>`.
+  - **14.5 CMake integration** (`rust/CMakeLists.txt`):
+    `BUILD_RUST_BINDINGS` option; `test_rust_bindings` CTest target
+    running `cargo test` with `OPENJP3D_LIBRARY` injected.
+    Requires `cargo` and `BUILD_SHARED_LIBS=ON`.
+  - **14.6 Test suite** (`rust/openjp3d/tests/integration_tests.rs`):
+    40 tests covering library loading, version format, constants,
+    `EncodeParams` defaults, lossless round-trips for all five supported
+    precisions (uint8/int8/uint16/int16/int32), multi-component
+    (3- and 4-channel) volumes, single-slice edge case, non-square
+    dimensions, large (16×16×16) volumes, tiled encoding, HTJ2K lossless,
+    lossy 9/7, `transcode_to_ht`, SOC marker check, data-layout
+    correctness, message callback, `VolumeInfo` metadata, and
+    error-handling cases.  Tests skip gracefully when the shared library
+    is not available.
+  - **14.7 Documentation** (`rust/openjp3d/README.md`): installation,
+    library search order, quick-start examples (lossless, lossy, HTJ2K,
+    transcode, multi-component, callback), and full API reference table.
+
 - **Phase 13: Go Bindings**
   - **13.1 Go package scaffold** (`go/openjp3d/`): module
     `github.com/raster-lab/openjp3d` declared in `go.mod`.

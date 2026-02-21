@@ -1,0 +1,20 @@
+# Copyright (c) 2024-2026, OpenJP3D Contributors
+# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
+
+[package]
+name = "openjp3d"
+version = "0.1.0"
+edition = "2021"
+description = "Rust bindings for the OpenJP3D volumetric codec library (JPEG 2000 Part 10)"
+license = "BSD-2-Clause"
+repository = "https://github.com/Raster-Lab/OpenJP3D"
+keywords = ["jpeg2000", "jp3d", "codec", "3d", "volumetric"]
+categories = ["multimedia::images", "api-bindings"]
+readme = "README.md"
+
+[dependencies]
+libloading = "0.8"
+
+[dev-dependencies]
+# No external test dependencies — uses only std and the crate itself.
