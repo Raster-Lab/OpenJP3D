@@ -55,3 +55,15 @@ target_include_directories(test_htj2k PRIVATE
 target_link_libraries(test_htj2k PRIVATE openjp3d)
 add_test(NAME htj2k COMMAND test_htj2k)
 
+
+# ---------------------------------------------------------------------------
+# JPIP 3-D (Phase 3) tests
+# ---------------------------------------------------------------------------
+if(BUILD_JPIP_3D)
+    add_executable(test_jpip3d test_jpip3d.c)
+    target_include_directories(test_jpip3d PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/lib/openjpip3d
+        ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
+    target_link_libraries(test_jpip3d PRIVATE openjpip3d openjp3d)
+    add_test(NAME jpip3d COMMAND test_jpip3d)
+endif()
