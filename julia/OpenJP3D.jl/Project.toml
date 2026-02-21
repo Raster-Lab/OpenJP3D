@@ -1,0 +1,16 @@
+name = "OpenJP3D"
+uuid = "b6e8f4a2-3c7d-4d1e-8f5b-2a9c0e3d7b1f"
+authors = ["OpenJP3D Contributors"]
+version = "1.0.0"
+
+[deps]
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+
+[compat]
+julia = "1.6"
+
+[extras]
+Test = "8dfed614-e22c-358e-b074-1e4a73e36a84"
+
+[targets]
+test = ["Test"]

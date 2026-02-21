@@ -299,6 +299,35 @@ interactive protocol to support volumetric data.
 
 ---
 
+## Phase 10 — Julia Bindings & Scientific Computing Integration ✅ Complete
+
+**Goal:** Expose the OpenJP3D codec to the Julia scientific computing ecosystem
+via pure-`ccall`-based bindings, enabling encoding and decoding of 3-D volumes
+directly from native Julia arrays without requiring any compilation step.
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 10.1 | Julia package scaffold | `julia/OpenJP3D.jl/` package with `Project.toml`.  Installable via `Pkg.develop(path="julia/OpenJP3D.jl")`.  BSD-2-Clause licence header on all Julia files.  Requires Julia ≥ 1.6 and no C compilation. |
+| 10.2 | Shared-library loader (`lib_path()`) | Cross-platform loader: checks `OPENJP3D_LIBRARY` env var, then the package `lib/` subdirectory, then `Libdl.find_library()`.  Works on Linux (`.so`), macOS (`.dylib`), and Windows (`.dll`).  Cached: library path resolved once per process. |
+| 10.3 | ccall bindings (C structs) | Julia `struct` types mirroring all public C structs (`VolumeComp`, `Volume`, `EncParamsC`, `DecParamsC`).  Layout verified against `openjp3d.h`.  Mutable structs for pass-by-reference (`EncParamsC`, `DecParamsC`). |
+| 10.4 | High-level Julia API (`OpenJP3D.jl`) | `encode(volume [, params]; on_message)` — accepts `(D,H,W)` or `(D,H,W,C)` Julia arrays; returns `Vector{UInt8}`.  `decode(data; verbose, on_message)` — accepts `Vector{UInt8}`; returns Julia array with correct element type.  `transcode_to_ht(data; params, on_message)` — wraps `opj_jp3d_transcode_to_ht()`.  `get_version()` — returns native library version.  `EncodeParams` keyword-argument struct mirrors `opj_jp3d_enc_params_t`.  Data-layout helpers handle Julia column-major ↔ C row-major conversion via `permutedims`. |
+| 10.5 | CMake integration (`julia/CMakeLists.txt`) | `BUILD_JULIA_BINDINGS` CMake option (default OFF).  When ON, registers a `test_julia_bindings` CTest target that runs `julia --project=julia/OpenJP3D.jl test/runtests.jl` with `OPENJP3D_LIBRARY` set automatically.  Checks for Julia ≥ 1.6 and `BUILD_SHARED_LIBS=ON`; skips gracefully otherwise. |
+| 10.6 | Julia test suite (`julia/OpenJP3D.jl/test/runtests.jl`) | 100+ test cases covering: version string format, all exported constants, `EncodeParams` construction and `_to_c()`, lossless round-trips for all five supported element types (`UInt8`, `Int8`, `UInt16`, `Int16`, `Int32`), multi-component 3- and 4-channel volumes, single-slice edge case, non-square dimensions, large volumes, tiled encoding, SOC marker check, HTJ2K round-trip, lossy 9/7 encoding, `transcode_to_ht` with and without params, data layout correctness (corner voxels, gradient pattern), message callback, and error handling (invalid codestream, 2-D/5-D input, `Float32`/`Float64` dtype).  Tests auto-skip when the shared library is not available. |
+| 10.7 | Package README (`julia/OpenJP3D.jl/README.md`) | Installation instructions, library search-order documentation, quick-start examples (lossless, lossy, HTJ2K, transcode, callback), and full API reference table. |
+
+### Exit Criteria
+
+- `Pkg.develop(path="julia/OpenJP3D.jl")` succeeds without compilation.
+- `julia --project=julia/OpenJP3D.jl julia/OpenJP3D.jl/test/runtests.jl` passes with the shared library built.
+- `OpenJP3D.encode()` / `OpenJP3D.decode()` produce lossless round-trips for all supported element types.
+- `OpenJP3D.transcode_to_ht()` produces a decodable codestream.
+- Data layout (Julia column-major ↔ C row-major) is correctly handled; spatial voxel order is preserved.
+- Package installs cleanly on Linux, macOS, and Windows.
+
+---
+
 ## Phase 9 — Python Bindings & NumPy Integration ✅ Complete
 
 **Goal:** Expose the OpenJP3D codec to the scientific Python ecosystem via pure-Python

@@ -24,6 +24,16 @@ compression (ISO/IEC 15444-10), built as an extension of the
   - `EncodeParams` dataclass with lossless/lossy/HTJ2K configuration
   - Message callbacks for codec errors/warnings/info
   - Installable via `pip install -e python/[numpy]`
+- **Julia bindings** (`julia/OpenJP3D.jl/`) — pure-`ccall` package; no C
+  compilation required:
+  - `OpenJP3D.encode(array)` → `Vector{UInt8}` JP3D codestream
+  - `OpenJP3D.decode(data)` → Julia `Array` with correct element type
+  - `OpenJP3D.transcode_to_ht(data)` → HTJ2K JP3D codestream
+  - Supports `UInt8`, `Int8`, `UInt16`, `Int16`, `Int32` element types;
+    single- and multi-component `(D,H,W)` / `(D,H,W,C)` array layouts
+  - `EncodeParams` keyword-argument struct with lossless/lossy/HTJ2K options
+  - Message callbacks for codec errors/warnings/info
+  - Installable via `Pkg.develop(path="julia/OpenJP3D.jl")`
 - Interactive GUI test application (`opj_jp3d_gui`) built with
   Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`):
   - File open dialog for `.jp3d`/`.j3d` codestreams and raw `.raw`/`.vol` volumes
@@ -97,8 +107,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 8E** — GUI JPIP 3-D Streaming Client ✅
 - **Phase 8F** — GUI Logging, Preferences & Platform Support ✅
 - **Phase 9** — Python Bindings & NumPy Integration ✅
+- **Phase 10** — Julia Bindings & Scientific Computing Integration ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8 and 9 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8, 9, and 10 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.
