@@ -459,7 +459,13 @@ int main(int argc, char *argv[])
 #else
     td = getenv("TMPDIR");
 #endif
-    if (!td) td = "/tmp";
+    if (!td) {
+#ifdef _WIN32
+        td = ".";
+#else
+        td = "/tmp";
+#endif
+    }
     snprintf(temp_dir, sizeof(temp_dir), "%s", td);
 
     /* Expect tool paths from environment or construct from build dir */
