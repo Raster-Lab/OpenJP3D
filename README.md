@@ -87,6 +87,16 @@ compression (ISO/IEC 15444-10), built as an extension of the
     key-capture editor; bindings persisted in the preferences INI file
   - Cross-platform packaging rules: portable ZIP (Windows), DragNDrop DMG
     with `.app` bundle (macOS), TGZ tarball (Linux)
+- **Go bindings** (`go/openjp3d/`) — CGo package with runtime
+  `dlopen`/`LoadLibrary` loading; no link-time dependency on the shared
+  library at Go build time:
+  - `Encode(samples, w, h, d, numComps, prec, signed, params, cb) → []byte`
+  - `Decode(data, params, cb) → ([]int32, VolumeInfo, error)`
+  - `TranscodeToHT(src, params, cb) → []byte`
+  - `EncodeParams` struct with lossless/lossy/HTJ2K options
+  - `MsgCallback` function type for codec error/warning/info messages
+  - Idempotent `LoadLib` with auto-search via `OPENJP3D_LIBRARY` env var
+  - Requires Go ≥ 1.21; enabled via `BUILD_GO_BINDINGS=ON`
 
 ## Building
 
@@ -120,8 +130,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 10** — Julia Bindings & Scientific Computing Integration ✅
 - **Phase 11** — R Bindings & Scientific Computing Integration ✅
 - **Phase 12** — MATLAB/Octave Bindings ✅
+- **Phase 13** — Go Bindings ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8, 9, 10, 11, and 12 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8–13 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

@@ -414,6 +414,34 @@ runtime-loading pattern as the R bindings (Phase 11).
 
 ---
 
+## Phase 13 — Go Bindings ✅ Complete
+
+**Goal:** Provide Go bindings for the OpenJP3D codec using CGo with runtime
+`dlopen`/`LoadLibrary` loading, following the same pattern as the R and MATLAB
+bindings (Phases 11–12).
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 13.1 | Go package scaffold | `go/openjp3d/` package with `go.mod` declaring module `github.com/raster-lab/openjp3d`. BSD-2-Clause licence header on all Go and C source files. |
+| 13.2 | CGo runtime loader (`openjp3d.go`) | CGo preamble embeds platform-specific dynamic-loading shims (`dlopen`/`LoadLibrary`) and C struct mirrors for `opj_volume_t`, `opj_jp3d_enc_params_t`, and `opj_jp3d_dec_params_t`. All C function pointers are resolved at runtime; no link-time dependency on the shared library. |
+| 13.3 | Callback bridge (`callback.go`) | `//export ojp3d_go_callback_bridge` Go function receives C-side messages and routes them to the current Go `MsgCallback`. Uses a mutex-protected global slot consistent with CGo restrictions. |
+| 13.4 | High-level Go API | `LoadLib(path string) error` — auto-search or explicit path; idempotent. `IsLoaded() bool`. `GetVersion() (string, error)`. `Encode(samples []int32, w, h, d, numComps, prec uint32, signed bool, params *EncodeParams, cb MsgCallback) ([]byte, error)`. `Decode(data []byte, params *DecodeParams, cb MsgCallback) ([]int32, VolumeInfo, error)`. `TranscodeToHT(src []byte, params *EncodeParams, cb MsgCallback) ([]byte, error)`. `DefaultEncodeParams() EncodeParams`. |
+| 13.5 | CMake integration (`go/CMakeLists.txt`) | `BUILD_GO_BINDINGS` CMake option (default OFF). Verifies Go ≥ 1.21 and `BUILD_SHARED_LIBS=ON`; registers `test_go_bindings` CTest target running `go test -v ./...` with `OPENJP3D_LIBRARY` set automatically. |
+| 13.6 | Go test suite (`go/openjp3d/openjp3d_test.go`) | 32 test cases covering: library loading (idempotent), version string format, all exported constants, `EncodeParams` defaults and manual fields, lossless round-trips for all five supported precisions (uint8, int8, uint16, int16, int32), multi-component (3- and 4-channel) volumes, single-slice edge case, non-square dimensions, large (16×16×16) volume, tiled encoding, HTJ2K lossless, lossy 9/7 encoding, `TranscodeToHT` with and without params, SOC marker check, data-layout correctness, message callback, `VolumeInfo` fields, error handling (empty and invalid codestreams, zero dimensions, too-few samples, empty transcode source), and all-zeros / all-max volumes. Tests skip gracefully when the shared library is not available. |
+| 13.7 | Documentation (`go/openjp3d/README.md`) | Installation instructions, library search-order documentation, quick-start examples (lossless, lossy, HTJ2K, transcode, multi-component, callback), and full API reference table. |
+
+### Exit Criteria
+
+- `go build ./...` succeeds on Linux, macOS, and Windows.
+- `OPENJP3D_LIBRARY=... go test -v ./...` passes with the shared library built (`BUILD_SHARED_LIBS=ON`).
+- `openjp3d.Encode()` / `openjp3d.Decode()` produce lossless round-trips for all supported precisions.
+- `openjp3d.TranscodeToHT()` produces a decodable codestream.
+- No memory leaks (C-allocated buffers freed via `opj_jp3d_free()`; decoded sample arrays freed via `free()`).
+
+---
+
 ## Dependency & Risk Summary
 
 | Risk | Mitigation |
@@ -446,7 +474,8 @@ runtime-loading pattern as the R bindings (Phase 11).
 | 10 | Julia Bindings & Scientific Computing Integration | 1–2 weeks |
 | 11 | R Bindings & Scientific Computing Integration | 1–2 weeks |
 | 12 | MATLAB/Octave Bindings | 1–2 weeks |
-| | **Total (sequential)** | **~39–56 weeks** |
+| 13 | Go Bindings | 1–2 weeks |
+| | **Total (sequential)** | **~40–58 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
 > potentially reducing total wall-clock time by 6–10 weeks.

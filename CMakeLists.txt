@@ -30,6 +30,7 @@ option(BUILD_PYTHON_BINDINGS "Register Python binding tests (requires Python 3 +
 option(BUILD_JULIA_BINDINGS "Register Julia binding tests (requires Julia ≥ 1.6)" OFF)
 option(BUILD_R_BINDINGS "Register R binding tests (requires R + testthat)" OFF)
 option(BUILD_MATLAB_BINDINGS "Register MATLAB/Octave binding tests (requires Octave or MATLAB)" OFF)
+option(BUILD_GO_BINDINGS "Register Go binding tests (requires Go ≥ 1.21 with CGO_ENABLED=1)" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -98,6 +99,10 @@ endif()
 
 if(BUILD_MATLAB_BINDINGS)
     add_subdirectory(matlab)
+endif()
+
+if(BUILD_GO_BINDINGS)
+    add_subdirectory(go)
 endif()
 
 # ---------------------------------------------------------------------------
