@@ -67,7 +67,8 @@ else
 fi
 
 if [ -f "$SCREENSHOT" ] && [ -s "$SCREENSHOT" ]; then
-    echo "PASS: Screenshot captured ($(stat -c%s "$SCREENSHOT" 2>/dev/null || stat -f%z "$SCREENSHOT") bytes)"
+    FSIZE=$(stat -c%s "$SCREENSHOT" 2>/dev/null || stat -f%z "$SCREENSHOT" 2>/dev/null || echo "?")
+    echo "PASS: Screenshot captured ($FSIZE bytes)"
 else
     echo "WARN: Screenshot capture failed or file is empty; L2 inconclusive"
 fi
@@ -77,7 +78,7 @@ echo "=== L1: Clean Exit ==="
 # Send SIGTERM and wait for clean exit
 kill "$GUI_PID" 2>/dev/null || true
 WAIT_EXIT=0
-for i in $(seq 1 10); do
+for i in {1..10}; do
     if ! kill -0 "$GUI_PID" 2>/dev/null; then
         WAIT_EXIT=1
         break
