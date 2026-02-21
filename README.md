@@ -34,6 +34,16 @@ compression (ISO/IEC 15444-10), built as an extension of the
   - `EncodeParams` keyword-argument struct with lossless/lossy/HTJ2K options
   - Message callbacks for codec errors/warnings/info
   - Installable via `Pkg.develop(path="julia/OpenJP3D.jl")`
+- **R bindings** (`r/openjp3d/`) — R package with a thin C wrapper using
+  dynamic library loading; no pre-installed openjp3d headers required:
+  - `encode(volume, prec, sgnd)` → `raw` JP3D codestream
+  - `decode(data)` → integer `array` with `dtype` attribute
+  - `transcode_to_ht(data)` → HTJ2K JP3D codestream
+  - Supports 8, 16, and 32-bit integer arrays (signed and unsigned);
+    single- and multi-component `(D,H,W)` / `(D,H,W,C)` layouts
+  - `EncodeParams` S3 constructor with lossless/lossy/HTJ2K options
+  - Message callbacks for codec errors/warnings/info
+  - Installable via `R CMD INSTALL r/openjp3d` or `devtools::install()`
 - Interactive GUI test application (`opj_jp3d_gui`) built with
   Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`):
   - File open dialog for `.jp3d`/`.j3d` codestreams and raw `.raw`/`.vol` volumes
@@ -108,8 +118,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 8F** — GUI Logging, Preferences & Platform Support ✅
 - **Phase 9** — Python Bindings & NumPy Integration ✅
 - **Phase 10** — Julia Bindings & Scientific Computing Integration ✅
+- **Phase 11** — R Bindings & Scientific Computing Integration ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8, 9, and 10 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8, 9, 10, and 11 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

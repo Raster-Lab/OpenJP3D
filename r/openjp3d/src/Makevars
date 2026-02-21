@@ -1,0 +1,3 @@
+# On Linux, dlopen/dlsym live in libdl.
+# On macOS they are part of libc — the flag is accepted but harmless.
+PKG_LIBS = -ldl

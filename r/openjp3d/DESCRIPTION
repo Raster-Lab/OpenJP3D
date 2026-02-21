@@ -1,0 +1,21 @@
+Package: openjp3d
+Type: Package
+Title: R Bindings for the OpenJP3D Volumetric Codec
+Version: 1.0.0
+Date: 2026-02-21
+Authors@R: person("OpenJP3D Contributors", role = c("aut", "cre"),
+                  email = "openjp3d@raster-lab.example.com")
+Description: Pure R bindings for the OpenJP3D shared library, providing
+    lossless and lossy compression of 3-D image volumes using JPEG 2000
+    Part 10 (JP3D / ISO/IEC 15444-10).  Encode and decode volumetric data
+    directly from R integer arrays without requiring a separate compilation
+    step beyond the standard R package build.  Supports optional HTJ2K
+    high-throughput block coding (JPEG 2000 Part 15).
+License: BSD_2_clause + file LICENSE
+URL: https://github.com/Raster-Lab/OpenJP3D
+BugReports: https://github.com/Raster-Lab/OpenJP3D/issues
+Depends: R (>= 3.5.0)
+Suggests:
+    testthat (>= 3.0.0)
+Encoding: UTF-8
+NeedsCompilation: yes
