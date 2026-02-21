@@ -91,6 +91,7 @@ add_executable(opj_jp3d_gui
     gui_codec.cpp
     gui_roundtrip.cpp
     gui_jpip.cpp
+    gui_log_prefs.cpp
 )
 
 target_include_directories(opj_jp3d_gui PRIVATE
@@ -117,4 +118,56 @@ elseif(UNIX)
     # X11 / Wayland dependencies usually pulled in by SDL2
     find_package(Threads REQUIRED)
     target_link_libraries(opj_jp3d_gui PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+endif()
+
+# -----------------------------------------------------------------------
+# Install target (8F.3 — cross-platform packaging)
+# -----------------------------------------------------------------------
+
+include(GNUInstallDirs)
+install(TARGETS opj_jp3d_gui
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE  DESTINATION .   # macOS .app bundle goes to the install prefix
+)
+
+# -----------------------------------------------------------------------
+# CPack packaging (8F.3)
+# -----------------------------------------------------------------------
+# Only configure CPack when this file is processed as the top-level
+# (i.e., when BUILD_GUI_TOOLS is the entry point).  The root
+# CMakeLists.txt controls whether CPack is included at all.
+
+if(NOT CPACK_PACKAGE_NAME)
+    set(CPACK_PACKAGE_NAME            "OpenJP3D-GUI")
+    set(CPACK_PACKAGE_VENDOR          "OpenJP3D Contributors")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+        "Interactive GUI for the OpenJP3D JPEG 2000 Part 10 volumetric codec")
+    set(CPACK_PACKAGE_VERSION         "${PROJECT_VERSION}")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "OpenJP3D-GUI")
+
+    if(WIN32)
+        # Windows: portable ZIP  (8F.3)
+        set(CPACK_GENERATOR "ZIP")
+        set(CPACK_PACKAGE_FILE_NAME
+            "OpenJP3D-GUI-${PROJECT_VERSION}-win64")
+    elseif(APPLE)
+        # macOS: DragNDrop DMG with .app bundle  (8F.3)
+        set(CPACK_GENERATOR "DragNDrop")
+        set(CPACK_PACKAGE_FILE_NAME
+            "OpenJP3D-GUI-${PROJECT_VERSION}-macOS")
+        set_target_properties(opj_jp3d_gui PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_BUNDLE_NAME          "OpenJP3D GUI"
+            MACOSX_BUNDLE_BUNDLE_VERSION       "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_GUI_IDENTIFIER       "org.openjp3d.gui"
+        )
+    else()
+        # Linux: TGZ archive — users may repackage as AppImage/Flatpak  (8F.3)
+        set(CPACK_GENERATOR "TGZ")
+        set(CPACK_PACKAGE_FILE_NAME
+            "OpenJP3D-GUI-${PROJECT_VERSION}-linux-x86_64")
+    endif()
+
+    include(CPack)
 endif()

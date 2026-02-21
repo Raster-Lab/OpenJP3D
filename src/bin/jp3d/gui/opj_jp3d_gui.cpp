@@ -49,36 +49,22 @@ extern "C" {
 #include "gui_codec.h"
 #include "gui_roundtrip.h"
 #include "gui_jpip.h"
+#include "gui_log_prefs.h"
 
 /* ================================================================== */
-/*  Log panel ring buffer                                             */
+/*  Log panel (Phase 8F.1) — thin wrapper around GuiLogState          */
 /* ================================================================== */
 
-enum log_severity {
-    LOG_INFO    = 0,
-    LOG_WARNING = 1,
-    LOG_ERROR   = 2
-};
+static GuiLogState g_log;
 
-struct log_entry {
-    enum log_severity severity;
-    std::string       message;
-};
-
-static std::vector<log_entry> g_log_entries;
-static bool g_log_scroll_to_bottom = true;
-static int  g_log_filter_mask = (1 << LOG_INFO) | (1 << LOG_WARNING) | (1 << LOG_ERROR);
-
-static void gui_log(enum log_severity sev, const char *fmt, ...)
+static void gui_log(GuiLogSeverity sev, const char *fmt, ...)
 {
     char buf[1024];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-
-    g_log_entries.push_back({sev, std::string(buf)});
-    g_log_scroll_to_bottom = true;
+    gui_log_add(&g_log, sev, "%s", buf);
 }
 
 /* ================================================================== */
@@ -88,7 +74,6 @@ static void gui_log(enum log_severity sev, const char *fmt, ...)
 static bool g_show_file_browser   = true;
 static bool g_show_volume_info    = true;
 static bool g_show_viewport       = true;
-static bool g_show_log_console    = true;
 static bool g_show_about          = false;
 static bool g_running             = true;
 
@@ -103,6 +88,10 @@ static GuiRoundtripState g_rt;
 
 /* JPIP streaming client state (Phase 8E) */
 static GuiJpipState g_jpip;
+
+/* Preferences and keyboard shortcuts (Phase 8F) */
+static GuiPrefsState     g_prefs;
+static GuiShortcutsState g_shortcuts;
 
 /* ================================================================== */
 /*  Open-volume dialog state (8B.1)                                   */
@@ -157,7 +146,7 @@ static void open_volume(const char *path)
     }
 
     if (ok) {
-        gui_log(LOG_INFO, "Loaded: %s  (%ux%ux%u, %u comp, %u bit%s)",
+        gui_log(GUI_LOG_INFO, "Loaded: %s  (%ux%ux%u, %u comp, %u bit%s)",
                 path,
                 g_vol.vol->comps[0].w,
                 g_vol.vol->comps[0].h,
@@ -167,7 +156,7 @@ static void open_volume(const char *path)
                 g_vol.vol->comps[0].sgnd ? " signed" : "");
         g_open_dlg_error[0] = '\0';
     } else {
-        gui_log(LOG_ERROR, "Failed to load '%s': %s", path, errbuf);
+        gui_log(GUI_LOG_ERROR, "Failed to load '%s': %s", path, errbuf);
         strncpy(g_open_dlg_error, errbuf, sizeof(g_open_dlg_error) - 1);
     }
 }
@@ -257,11 +246,12 @@ static void draw_menu_bar(void)
             ImGui::MenuItem("File Browser",  NULL, &g_show_file_browser);
             ImGui::MenuItem("Volume Info",   NULL, &g_show_volume_info);
             ImGui::MenuItem("Viewport",      NULL, &g_show_viewport);
-            ImGui::MenuItem("Log Console",   NULL, &g_show_log_console);
+            ImGui::MenuItem("Log Console",   NULL, &g_log.show_log);
             ImGui::Separator();
             if (ImGui::MenuItem("Toggle Theme", "Ctrl+T")) {
                 enum opj_gui_theme t = opj_gui_toggle_theme();
-                gui_log(LOG_INFO, "Theme switched to %s",
+                g_prefs.theme = (t == OPJ_GUI_THEME_DARK) ? 0 : 1;
+                gui_log(GUI_LOG_INFO, "Theme switched to %s",
                         t == OPJ_GUI_THEME_DARK ? "Dark" : "Light");
             }
             ImGui::EndMenu();
@@ -307,6 +297,13 @@ static void draw_menu_bar(void)
             if (ImGui::MenuItem("JPIP Diagnostics...", NULL, false,
                                 g_jpip.connected)) {
                 g_jpip.show_diagnostics = true;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Preferences...")) {
+                g_prefs.show_prefs = true;
+            }
+            if (ImGui::MenuItem("Keyboard Shortcuts...")) {
+                g_shortcuts.show_shortcuts = true;
             }
             ImGui::EndMenu();
         }
@@ -384,7 +381,8 @@ static void draw_toolbar(void)
             "Theme: Dark" : "Theme: Light";
         if (ImGui::Button(theme_label)) {
             enum opj_gui_theme t = opj_gui_toggle_theme();
-            gui_log(LOG_INFO, "Theme switched to %s",
+            g_prefs.theme = (t == OPJ_GUI_THEME_DARK) ? 0 : 1;
+            gui_log(GUI_LOG_INFO, "Theme switched to %s",
                     t == OPJ_GUI_THEME_DARK ? "Dark" : "Light");
         }
     }
@@ -413,7 +411,7 @@ static void draw_file_browser(void)
             ImGui::Spacing();
             if (ImGui::Button("Close Volume")) {
                 gui_volume_state_free(&g_vol);
-                gui_log(LOG_INFO, "Volume closed.");
+                gui_log(GUI_LOG_INFO, "Volume closed.");
             }
         } else {
             ImGui::TextDisabled("(No volume loaded)");
@@ -622,63 +620,10 @@ static void draw_viewport(void)
     ImGui::PopStyleVar();
 }
 
-/* ---- log console ---- */
+/* ---- log console (Phase 8F.1 — delegates to GuiLogState) ---- */
 static void draw_log_console(void)
 {
-    if (!g_show_log_console) return;
-    if (ImGui::Begin("Log Console", &g_show_log_console)) {
-        /* Filter buttons */
-        bool f_info = (g_log_filter_mask & (1 << LOG_INFO)) != 0;
-        bool f_warn = (g_log_filter_mask & (1 << LOG_WARNING)) != 0;
-        bool f_err  = (g_log_filter_mask & (1 << LOG_ERROR)) != 0;
-        if (ImGui::Checkbox("Info", &f_info))
-            g_log_filter_mask ^= (1 << LOG_INFO);
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Warning", &f_warn))
-            g_log_filter_mask ^= (1 << LOG_WARNING);
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Error", &f_err))
-            g_log_filter_mask ^= (1 << LOG_ERROR);
-        ImGui::SameLine();
-        if (ImGui::Button("Clear")) {
-            g_log_entries.clear();
-        }
-        ImGui::Separator();
-
-        /* Scrollable log area */
-        ImGui::BeginChild("LogScroll", ImVec2(0, 0), ImGuiChildFlags_None,
-                          ImGuiWindowFlags_HorizontalScrollbar);
-        for (const auto &entry : g_log_entries) {
-            if (!(g_log_filter_mask & (1 << entry.severity)))
-                continue;
-            ImVec4 col;
-            const char *prefix;
-            switch (entry.severity) {
-            case LOG_WARNING:
-                col = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);
-                prefix = "[WARN] ";
-                break;
-            case LOG_ERROR:
-                col = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
-                prefix = "[ERR]  ";
-                break;
-            default:
-                col = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-                prefix = "[INFO] ";
-                break;
-            }
-            ImGui::PushStyleColor(ImGuiCol_Text, col);
-            ImGui::TextUnformatted((std::string(prefix) +
-                                    entry.message).c_str());
-            ImGui::PopStyleColor();
-        }
-        if (g_log_scroll_to_bottom) {
-            ImGui::SetScrollHereY(1.0f);
-            g_log_scroll_to_bottom = false;
-        }
-        ImGui::EndChild();
-    }
-    ImGui::End();
+    gui_log_draw_panel(&g_log);
 }
 
 /* ---- about dialog ---- */
@@ -772,6 +717,17 @@ int main(int argc, char *argv[])
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    /* Initialise log, preferences, and shortcuts (Phase 8F) */
+    gui_log_state_init(&g_log);
+    gui_prefs_state_init(&g_prefs);
+    gui_prefs_resolve_config_path(&g_prefs);
+    gui_prefs_load(&g_prefs);
+    gui_shortcuts_state_init(&g_shortcuts);
+    gui_shortcuts_load(&g_shortcuts, g_prefs.config_path);
+    /* Apply persisted theme */
+    opj_gui_apply_theme(g_prefs.theme == 0 ? OPJ_GUI_THEME_DARK
+                                           : OPJ_GUI_THEME_LIGHT);
+
     /* Initialise volume state */
     gui_volume_state_init(&g_vol);
 
@@ -784,10 +740,12 @@ int main(int argc, char *argv[])
     /* Initialise JPIP streaming client state (Phase 8E) */
     gui_jpip_state_init(&g_jpip);
 
-    gui_log(LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
-    gui_log(LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
+    gui_log(GUI_LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
+    gui_log(GUI_LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
             IMGUI_VERSION, SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
             SDL_PATCHLEVEL);
+    if (g_prefs.config_path[0])
+        gui_log(GUI_LOG_INFO, "Preferences: %s", g_prefs.config_path);
 
     /* -------------------------------------------------------------- */
     /*  Main loop                                                     */
@@ -804,17 +762,34 @@ int main(int argc, char *argv[])
                 g_running = false;
         }
 
-        /* Keyboard shortcuts */
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Q))
+        /* Keyboard shortcuts (Phase 8F.4 — configurable bindings) */
+        if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_QUIT))
             g_running = false;
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_T)) {
+        if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_TOGGLE_THEME)) {
             enum opj_gui_theme t = opj_gui_toggle_theme();
-            gui_log(LOG_INFO, "Theme switched to %s",
+            g_prefs.theme = (t == OPJ_GUI_THEME_DARK) ? 0 : 1;
+            gui_log(GUI_LOG_INFO, "Theme switched to %s",
                     t == OPJ_GUI_THEME_DARK ? "Dark" : "Light");
         }
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O)) {
+        if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_OPEN)) {
             g_open_dlg_visible  = true;
             g_open_dlg_error[0] = '\0';
+        }
+        if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_ENCODE))
+            g_codec.show_encode = true;
+        if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_DECODE))
+            g_codec.show_decode = true;
+        if (g_vol.loaded) {
+            if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_NEXT_SLICE)) {
+                g_vol.slice_idx++;
+                gui_volume_clamp_slice(&g_vol);
+                g_vol.tex_dirty = true;
+            }
+            if (gui_shortcuts_check(&g_shortcuts, GUI_ACTION_PREV_SLICE)) {
+                g_vol.slice_idx--;
+                gui_volume_clamp_slice(&g_vol);
+                g_vol.tex_dirty = true;
+            }
         }
 
         /* New frame */
@@ -907,7 +882,7 @@ int main(int argc, char *argv[])
             g_vol.filepath[sizeof(g_vol.filepath) - 1] = '\0';
             gui_volume_compute_stats(&g_vol);
             g_codec.decode_result = NULL;
-            gui_log(LOG_INFO, "Decoded volume loaded into viewer.");
+            gui_log(GUI_LOG_INFO, "Decoded volume loaded into viewer.");
         }
 
         /* ---- Draw panels ---- */
@@ -937,6 +912,10 @@ int main(int argc, char *argv[])
         gui_jpip_draw_browser(&g_jpip, &g_vol);
         gui_jpip_draw_diagnostics(&g_jpip);
 
+        /* ---- Logging, preferences, and shortcuts (Phase 8F) ---- */
+        gui_prefs_draw(&g_prefs);
+        gui_shortcuts_draw(&g_shortcuts);
+
         /* ---- Render ---- */
         ImGui::Render();
         int display_w, display_h;
@@ -954,10 +933,16 @@ int main(int argc, char *argv[])
     /* -------------------------------------------------------------- */
     /*  Cleanup                                                       */
     /* -------------------------------------------------------------- */
+    /* Save shortcuts and prefs on exit (Phase 8F) */
+    gui_shortcuts_save(&g_shortcuts, g_prefs.config_path);
+    if (g_prefs.dirty)
+        gui_prefs_save(&g_prefs);
+
     gui_jpip_state_free(&g_jpip);
     gui_roundtrip_state_free(&g_rt);
     gui_codec_state_free(&g_codec);
     gui_volume_state_free(&g_vol);
+    gui_log_state_free(&g_log);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
