@@ -1,0 +1,35 @@
+.\" Copyright (c) 2024-2026, OpenJP3D Contributors
+.\" SPDX-License-Identifier: BSD-2-Clause
+.TH OPJ_JP3D_DUMP 1 "2026-02-21" "OpenJP3D 0.1.0" "OpenJP3D Manual"
+.SH NAME
+opj_jp3d_dump \- inspect a JP3D codestream
+.SH SYNOPSIS
+.B opj_jp3d_dump
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB \-i\ \fIinput.jp3d\fR
+.SH DESCRIPTION
+.B opj_jp3d_dump
+reads a JP3D (JPEG\ 2000 Part\ 10) codestream file and prints its
+marker segments, tile information, and other structural details to
+standard output.
+.SH OPTIONS
+.TP
+.BR \-i\ \fIfile\fR
+Input JP3D codestream file (required).
+.TP
+.BR \-h ,\ \-\-help
+Print help message and exit.
+.TP
+.BR \-\-version
+Print version information and exit.
+.SH EXAMPLES
+.nf
+opj_jp3d_dump \-i volume.jp3d
+.fi
+.SH SEE ALSO
+.BR opj_jp3d_compress (1),
+.BR opj_jp3d_decompress (1),
+.BR opj_jp3d_transcode (1)
+.SH AUTHORS
+OpenJP3D Contributors

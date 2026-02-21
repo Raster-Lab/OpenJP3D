@@ -1,0 +1,43 @@
+.\" Copyright (c) 2024-2026, OpenJP3D Contributors
+.\" SPDX-License-Identifier: BSD-2-Clause
+.TH OPJ_JPIP3D_SERVER 1 "2026-02-21" "OpenJP3D 0.1.0" "OpenJP3D Manual"
+.SH NAME
+opj_jpip3d_server \- standalone JPIP server for JP3D datasets
+.SH SYNOPSIS
+.B opj_jpip3d_server
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB [ \-v ]
+.RB \-d\ \fIname\fR
+.RB \-f\ \fIfile.jp3d\fR
+.SH DESCRIPTION
+.B opj_jpip3d_server
+loads a JP3D codestream and serves it via the JPIP 3\-D protocol.
+Requests are read from standard input (one URL query string per line)
+and responses are written to standard output.
+.SH OPTIONS
+.TP
+.BR \-d\ \fIname\fR
+Dataset name (required).
+.TP
+.BR \-f\ \fIfile\fR
+JP3D codestream file to serve (required).
+.TP
+.BR \-v
+Verbose output.
+.TP
+.BR \-h ,\ \-\-help
+Print help message and exit.
+.TP
+.BR \-\-version
+Print version information and exit.
+.SH EXAMPLES
+.nf
+echo 'dataset=vol&fsiz3d=256,256,128&roff3d=0,0,0&rsiz3d=64,64,32' \\
+  | opj_jpip3d_server \-d vol \-f volume.jp3d
+.fi
+.SH SEE ALSO
+.BR opj_jp3d_compress (1),
+.BR opj_jp3d_decompress (1)
+.SH AUTHORS
+OpenJP3D Contributors

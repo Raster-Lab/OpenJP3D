@@ -1,0 +1,88 @@
+.\" Copyright (c) 2024-2026, OpenJP3D Contributors
+.\" SPDX-License-Identifier: BSD-2-Clause
+.TH OPJ_JP3D_COMPRESS 1 "2026-02-21" "OpenJP3D 0.1.0" "OpenJP3D Manual"
+.SH NAME
+opj_jp3d_compress \- encode a raw binary volume into a JP3D codestream
+.SH SYNOPSIS
+.B opj_jp3d_compress
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB [ \-v ]
+.RB \-i\ \fIinput.raw\fR
+.RB \-o\ \fIoutput.jp3d\fR
+.RB \-W\ \fIwidth\fR
+.RB \-H\ \fIheight\fR
+.RB \-D\ \fIdepth\fR
+.RB [ \-p\ \fIprec\fR ]
+.RB [ \-s ]
+.RB [ \-c\ \fInumcomps\fR ]
+.RB [ \-t\ \fItw,th,td\fR ]
+.RB [ \-n\ \fIrx,ry,rz\fR ]
+.RB [ \-r\ \fIrate\fR ]
+.RB [ \-f\ \fI53|97\fR ]
+.RB [ \-H2K ]
+.SH DESCRIPTION
+.B opj_jp3d_compress
+reads a raw binary volume file and encodes it into a JP3D (JPEG\ 2000
+Part\ 10) codestream. The input file must contain sample data in
+z\-major order, little-endian.
+.SH OPTIONS
+.TP
+.BR \-i\ \fIfile\fR
+Input raw binary volume file (required).
+.TP
+.BR \-o\ \fIfile\fR
+Output JP3D codestream file (required).
+.TP
+.BR \-W\ \fIw\fR
+Volume width in X samples (required).
+.TP
+.BR \-H\ \fIh\fR
+Volume height in Y samples (required).
+.TP
+.BR \-D\ \fId\fR
+Volume depth in Z slices (required).
+.TP
+.BR \-p\ \fIprec\fR
+Bit depth per sample (default: 8).
+.TP
+.BR \-s
+Treat samples as signed (default: unsigned).
+.TP
+.BR \-c\ \fInumcomps\fR
+Number of components (default: 1).
+.TP
+.BR \-t\ \fItw,th,td\fR
+Tile dimensions (default: whole volume).
+.TP
+.BR \-n\ \fIrx,ry,rz\fR
+DWT decomposition levels per axis (default: 3,3,3).
+.TP
+.BR \-r\ \fIrate\fR
+Target bits/sample; 0 means lossless (default: 0).
+.TP
+.BR \-f\ \fI53|97\fR
+DWT filter: 53 (lossless 5/3) or 97 (lossy 9/7). Default: 53.
+.TP
+.BR \-H2K
+Enable HTJ2K high\-throughput block coder.
+.TP
+.BR \-v
+Verbose output.
+.TP
+.BR \-h ,\ \-\-help
+Print help message and exit.
+.TP
+.BR \-\-version
+Print version information and exit.
+.SH EXAMPLES
+.nf
+opj_jp3d_compress \-i volume.raw \-o volume.jp3d \-W 256 \-H 256 \-D 128 \-p 16
+opj_jp3d_compress \-i vol.raw \-o vol.jp3d \-W 64 \-H 64 \-D 64 \-H2K
+.fi
+.SH SEE ALSO
+.BR opj_jp3d_decompress (1),
+.BR opj_jp3d_dump (1),
+.BR opj_jp3d_transcode (1)
+.SH AUTHORS
+OpenJP3D Contributors

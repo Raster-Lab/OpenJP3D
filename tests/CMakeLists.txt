@@ -73,3 +73,15 @@ if(BUILD_JPIP_3D)
     target_link_libraries(test_jpip3d PRIVATE openjpip3d openjp3d)
     add_test(NAME jpip3d COMMAND test_jpip3d)
 endif()
+
+# ---------------------------------------------------------------------------
+# CLI end-to-end tests (Phase 5)
+# ---------------------------------------------------------------------------
+if(BUILD_CLI_TOOLS)
+    add_executable(test_cli test_cli.c)
+    target_include_directories(test_cli PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
+    target_link_libraries(test_cli PRIVATE openjp3d)
+    add_test(NAME cli COMMAND test_cli
+        ${CMAKE_BINARY_DIR}/src/bin/jp3d)
+endif()
