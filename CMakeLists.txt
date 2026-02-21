@@ -29,6 +29,7 @@ option(BUILD_GUI_TOOLS "Build interactive GUI test application (Dear ImGui + SDL
 option(BUILD_PYTHON_BINDINGS "Register Python binding tests (requires Python 3 + pytest + NumPy)" OFF)
 option(BUILD_JULIA_BINDINGS "Register Julia binding tests (requires Julia ≥ 1.6)" OFF)
 option(BUILD_R_BINDINGS "Register R binding tests (requires R + testthat)" OFF)
+option(BUILD_MATLAB_BINDINGS "Register MATLAB/Octave binding tests (requires Octave or MATLAB)" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -93,6 +94,10 @@ endif()
 
 if(BUILD_R_BINDINGS)
     add_subdirectory(r)
+endif()
+
+if(BUILD_MATLAB_BINDINGS)
+    add_subdirectory(matlab)
 endif()
 
 # ---------------------------------------------------------------------------
