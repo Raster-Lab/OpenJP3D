@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 4: SIMD Optimisation.
+  - **4.1 Profiling baseline**: critical hotspots identified as the 3-D DWT
+    (separable 5/3 lifting along X/Y/Z) and entropy coding; the X-direction
+    row transform (contiguous memory) is the primary SIMD target.
+  - **4.2 x86-64 SSE4.1 / AVX2** (`opj_dwt3d_sse41.c`, `opj_dwt3d_avx2.c`):
+    vectorised forward and inverse 5/3 integer lifting steps.
+    SSE4.1 processes 4 `int32` samples per SIMD word; AVX2 processes 8.
+    De-interleaving uses shuffle+unpack (SSE4.1) or `permutevar8x32` (AVX2).
+    Scatter-back via `_mm_unpacklo/hi_epi32` stores.  Both paths are compiled
+    with per-file `-msse4.1` / `-mavx2` flags.
+  - **4.3 AArch64 NEON** (`opj_dwt3d_neon.c`): equivalent NEON implementation
+    using `vld2q_s32` / `vst2q_s32` for zero-cost de-interleave/re-interleave.
+  - **4.4 Apple A/M-series**: the NEON path is compatible with Apple Silicon
+    (M1–M4); no extra flags are required since NEON is mandatory on AArch64.
+  - **4.5 Runtime dispatch** (`opj_cpu.h`, `opj_cpu.c`): `opj_cpu_features()`
+    detects SSE2, SSE4.1, AVX2 (via CPUID) and NEON (compile-time for
+    AArch64) at runtime; result is memoised.  `opj_cpu_features_str()` returns
+    a human-readable feature string.  `opj_dwt3d.c` uses static-cached
+    dispatch functions (`dwt53_fwd_1d_dispatch`, `dwt53_inv_1d_dispatch`)
+    that select AVX2 → SSE4.1 → NEON → scalar in priority order.
+  - **4.6 Multi-threading**: optional OpenMP parallelism (enabled with
+    `-DENABLE_OPENMP=ON`) on the X-direction row loops in `opj_dwt3d_fwd`
+    and `opj_dwt3d_inv`; each thread uses a private scratch buffer.
+  - **4.7 Benchmarks** (`tools/benchmark/bench_dwt3d.c`): reproducible DWT
+    throughput benchmark reporting MVoxels/sec for forward and inverse 5/3
+    and 9/7 transforms across configurable volume sizes and decomposition
+    levels.  Enabled with `-DBUILD_BENCHMARKS=ON`.
+  - SIMD correctness tests (`tests/test_simd.c`): 89 test cases covering
+    CPU feature detection, SSE4.1/AVX2/NEON 1-D DWT correctness vs scalar
+    reference (19 row lengths × 2 directions × up to 3 ISA paths), and
+    3-D DWT dispatch round-trips on 10 volume configurations.
+  - `opj_dwt3d_simd.h`: internal header declaring the SIMD 1-D DWT functions
+    with `OPJ_JP3D_HAVE_*` guards for clean conditional compilation.
+  - `CMakeLists.txt`: added `ENABLE_OPENMP` and `BUILD_BENCHMARKS` options.
+
 - Phase 3: JPIP Extension for JP3D (Part 9).
   - **3.1 JPIP 3-D request model**: `opj_jpip3d_request_t` with `fsiz3d`, `roff3d`, `rsiz3d`
     Z-axis parameters for sub-volume window-of-interest access.

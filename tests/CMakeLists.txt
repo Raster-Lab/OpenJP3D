@@ -56,9 +56,15 @@ target_link_libraries(test_htj2k PRIVATE openjp3d)
 add_test(NAME htj2k COMMAND test_htj2k)
 
 
+
 # ---------------------------------------------------------------------------
-# JPIP 3-D (Phase 3) tests
+# SIMD (Phase 4) tests
 # ---------------------------------------------------------------------------
+add_executable(test_simd test_simd.c)
+target_include_directories(test_simd PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
+target_link_libraries(test_simd PRIVATE openjp3d)
+add_test(NAME simd COMMAND test_simd)
 if(BUILD_JPIP_3D)
     add_executable(test_jpip3d test_jpip3d.c)
     target_include_directories(test_jpip3d PRIVATE
