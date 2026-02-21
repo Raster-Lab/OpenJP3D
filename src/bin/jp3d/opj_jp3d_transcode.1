@@ -1,0 +1,44 @@
+.\" Copyright (c) 2024-2026, OpenJP3D Contributors
+.\" SPDX-License-Identifier: BSD-2-Clause
+.TH OPJ_JP3D_TRANSCODE 1 "2026-02-21" "OpenJP3D 0.1.0" "OpenJP3D Manual"
+.SH NAME
+opj_jp3d_transcode \- transcode a JP3D codestream between EBCOT and HTJ2K
+.SH SYNOPSIS
+.B opj_jp3d_transcode
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB [ \-v ]
+.RB \-i\ \fIinput.jp3d\fR
+.RB \-o\ \fIoutput.jp3d\fR
+.SH DESCRIPTION
+.B opj_jp3d_transcode
+reads a JP3D codestream encoded with the EBCOT block coder and
+transcodes it to use the HTJ2K high\-throughput block coder without
+performing a full decode/re-encode cycle. The output codestream is
+functionally equivalent to the input.
+.SH OPTIONS
+.TP
+.BR \-i\ \fIfile\fR
+Input JP3D codestream file (required).
+.TP
+.BR \-o\ \fIfile\fR
+Output JP3D codestream file (required).
+.TP
+.BR \-v
+Verbose output.
+.TP
+.BR \-h ,\ \-\-help
+Print help message and exit.
+.TP
+.BR \-\-version
+Print version information and exit.
+.SH EXAMPLES
+.nf
+opj_jp3d_transcode \-i ebcot.jp3d \-o htj2k.jp3d
+.fi
+.SH SEE ALSO
+.BR opj_jp3d_compress (1),
+.BR opj_jp3d_decompress (1),
+.BR opj_jp3d_dump (1)
+.SH AUTHORS
+OpenJP3D Contributors

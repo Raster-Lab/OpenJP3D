@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 5: Command-Line Tools.
+  - **5.1 `opj_jp3d_compress`**: CLI tool to encode a raw binary volume into
+    a JP3D codestream.  Options: tile size (`-t`), decomposition levels (`-n`),
+    target bit-rate (`-r`), lossless/lossy filter selection (`-f 53|97`),
+    HTJ2K mode (`-H2K`), bit depth (`-p`), signed samples (`-s`), number of
+    components (`-c`), and verbose output (`-v`).
+  - **5.2 `opj_jp3d_decompress`**: CLI tool to decode a JP3D codestream into
+    a raw binary volume file.  Supports verbose output and the full JP3D
+    feature set including HTJ2K auto-detection.
+  - **5.3 `opj_jp3d_dump`**: CLI tool to inspect a JP3D codestream and print
+    marker segments (SOC, SIZ3D, COD3D, QCD3D, SOT, SOD, EOC), volume
+    dimensions, tile layout, filter type, code-block sizes, and HTJ2K flag.
+  - **5.4 `opj_jp3d_transcode`**: CLI tool to transcode a JP3D codestream from
+    EBCOT to HTJ2K block coding without full decode/re-encode.
+  - **5.5 `opj_jpip3d_server`**: Standalone JPIP server CLI for JP3D datasets.
+    Reads JPIP 3-D query strings from stdin, processes them via the Phase 3
+    server library, and writes responses to stdout.
+  - **5.6 Man pages**: Troff man pages for all five tools, installable to
+    `share/man/man1/`.
+  - `BUILD_CLI_TOOLS` CMake option now defaults to ON.
+  - End-to-end CLI tests (`tests/test_cli.c`): 12 test cases covering
+    round-trip compress→decompress (8-bit, 16-bit, HTJ2K, signed), dump
+    marker verification, EBCOT→HTJ2K transcode round-trip, `--help`/`--version`
+    exit codes, missing-argument error handling, verbose mode, volume size
+    in dump output, and custom decomposition levels.
+
 - Phase 4: SIMD Optimisation.
   - **4.1 Profiling baseline**: critical hotspots identified as the 3-D DWT
     (separable 5/3 lifting along X/Y/Z) and entropy coding; the X-direction

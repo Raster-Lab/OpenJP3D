@@ -1,0 +1,42 @@
+.\" Copyright (c) 2024-2026, OpenJP3D Contributors
+.\" SPDX-License-Identifier: BSD-2-Clause
+.TH OPJ_JP3D_DECOMPRESS 1 "2026-02-21" "OpenJP3D 0.1.0" "OpenJP3D Manual"
+.SH NAME
+opj_jp3d_decompress \- decode a JP3D codestream into a raw binary volume
+.SH SYNOPSIS
+.B opj_jp3d_decompress
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB [ \-v ]
+.RB \-i\ \fIinput.jp3d\fR
+.RB \-o\ \fIoutput.raw\fR
+.SH DESCRIPTION
+.B opj_jp3d_decompress
+reads a JP3D (JPEG\ 2000 Part\ 10) codestream file and decodes it into a
+raw binary volume. Samples are written in z\-major order, little-endian.
+.SH OPTIONS
+.TP
+.BR \-i\ \fIfile\fR
+Input JP3D codestream file (required).
+.TP
+.BR \-o\ \fIfile\fR
+Output raw binary volume file (required).
+.TP
+.BR \-v
+Verbose output.
+.TP
+.BR \-h ,\ \-\-help
+Print help message and exit.
+.TP
+.BR \-\-version
+Print version information and exit.
+.SH EXAMPLES
+.nf
+opj_jp3d_decompress \-i volume.jp3d \-o volume.raw
+.fi
+.SH SEE ALSO
+.BR opj_jp3d_compress (1),
+.BR opj_jp3d_dump (1),
+.BR opj_jp3d_transcode (1)
+.SH AUTHORS
+OpenJP3D Contributors
