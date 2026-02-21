@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 8C: Encoding & Decoding Controls**
+  - **8C.1 Encode panel**: `Tools > Encode` (or toolbar) opens the Encode
+    panel with full encoder parameter controls: tile size (X/Y/Z),
+    decomposition levels (0–8), code-block size, target bit-rate (0 = lossless),
+    lossless 5/3 vs. lossy 9/7 filter selection, HTJ2K mode toggle, and thread
+    count.  "Encode" button triggers background encoding of the loaded volume
+    via `opj_jp3d_encode()` and writes the result to the specified output path.
+  - **8C.2 Decode panel**: `Tools > Decode` opens the Decode panel with
+    decoder options: input JP3D codestream path, optional sub-volume extraction
+    (offset + size), reduced resolution level, and single-slice mode.
+    "Decode" button runs `opj_jp3d_decode()` in a background thread and
+    auto-loads the result into the viewer on completion.
+  - **8C.3 Transcode panel**: `Tools > Transcode` opens the Transcode panel
+    for EBCOT ↔ HTJ2K transcoding.  Select an input JP3D codestream, choose
+    target mode (HTJ2K or EBCOT), specify an output path, and execute.
+    HTJ2K transcoding uses `opj_jp3d_transcode_to_ht()`; EBCOT transcoding
+    performs a full decode + re-encode cycle.
+  - **8C.4 Progress & cancellation**: Progress window shows an animated
+    progress bar, elapsed time (minutes:seconds), and a Cancel button for
+    all long-running encode/decode/transcode operations.  Operations run in
+    a background `std::thread` to keep the GUI responsive.  On completion the
+    window shows success/failure status with error details.
+  - New source files: `src/bin/jp3d/gui/gui_codec.h`,
+    `src/bin/jp3d/gui/gui_codec.cpp`.  `CMakeLists.txt` updated to compile
+    them as part of the `opj_jp3d_gui` target.
+
 - **Phase 8B: Volume Loading & Visualisation**
   - **8B.1 File open dialog**: `Open Volume` dialog (File menu, toolbar, Ctrl+O)
     accepts JP3D codestreams (`.jp3d`, `.j3d`) decoded via `opj_jp3d_decode()`

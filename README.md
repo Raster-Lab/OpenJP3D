@@ -25,6 +25,13 @@ compression (ISO/IEC 15444-10), built as an extension of the
     compression mode
   - Per-component statistics (min/max/mean/std-dev) and 256-bin intensity
     histogram
+  - Encode panel with full encoder parameter controls (tile size, DWT levels,
+    code-block size, bit-rate, filter, HTJ2K toggle, threads)
+  - Decode panel with sub-volume extraction, resolution reduction, and
+    single-slice mode options
+  - Transcode panel for EBCOT ↔ HTJ2K transcoding
+  - Progress window with elapsed time and cancellation for long-running
+    operations (background threading)
 
 ## Building
 
@@ -49,7 +56,8 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 6** — Documentation & Examples ✅
 - **Phase 7** — Integration Testing & Release ✅
 - **Phase 8A** — GUI Application Framework & UI Shell ✅
-- **Phase 8B** — GUI Volume Loading & Visualisation ✅ *(in progress — Phase 8)*
+- **Phase 8B** — GUI Volume Loading & Visualisation ✅
+- **Phase 8C** — GUI Encoding & Decoding Controls ✅ *(in progress — Phase 8)*
 
 **Current release: v1.0.0**
 
