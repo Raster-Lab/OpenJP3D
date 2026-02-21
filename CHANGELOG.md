@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 8B: Volume Loading & Visualisation**
+  - **8B.1 File open dialog**: `Open Volume` dialog (File menu, toolbar, Ctrl+O)
+    accepts JP3D codestreams (`.jp3d`, `.j3d`) decoded via `opj_jp3d_decode()`
+    and raw binary volumes (`.raw`, `.vol`) loaded via `opj_raw_io_read()`.
+    Raw-file parameters (width, height, depth, precision, signed flag,
+    component count) are entered inline in the dialog; format is auto-detected
+    from the file extension.
+  - **8B.2 Slice viewer**: 2-D slice viewport rendering axial (Z), sagittal (X),
+    or coronal (Y) planes.  The current axis and slice index are controlled by
+    radio-buttons, a slider, and scroll-wheel.  Each frame the active slice is
+    extracted from the loaded `opj_volume_t`, window/level–normalised, and
+    uploaded as an RGBA8 OpenGL texture displayed via `ImGui::Image()`.
+    Aspect-ratio–preserving fit is applied automatically.
+  - **8B.3 3-D volume rendering**: GPU-accelerated ray-cast renderer toggled
+    from the viewport toolbar.  Renders component 0 into an FBO colour
+    attachment via a full-screen GLSL shader that marches 128 steps through a
+    3-D `GL_R8` volume texture.  Configurable azimuth, elevation, and density
+    controls; the 3-D texture is lazily rebuilt whenever the volume changes.
+  - **8B.4 Metadata display**: Volume Info panel now shows real data — voxel
+    dimensions (W × H × D), bit-depth, component count, voxel dz spacing,
+    DWT resolution levels, filter type (5/3 lossless vs 9/7 lossy), and HTJ2K
+    flag (populated for JP3D codestreams).
+  - **8B.5 Histogram & statistics**: `gui_volume_compute_stats()` computes
+    per-component min, max, mean, and standard deviation in a single pass.
+    Results are shown in the Volume Info panel together with a 256-bin
+    normalised intensity histogram rendered via `ImGui::PlotHistogram()`.
+    Window/level sliders are pre-seeded from the computed min/max and update
+    the slice texture in real time.
+  - New source files: `src/bin/jp3d/gui/gui_volume.h`,
+    `src/bin/jp3d/gui/gui_volume.cpp`.  `CMakeLists.txt` updated to compile
+    them as part of the `opj_jp3d_gui` target.
+
 - **Phase 8A: Application Framework & UI Shell**
   - **8A.1 GUI toolkit selection**: Evaluated Qt 6, GTK 4, wxWidgets, and
     Dear ImGui + SDL2. Selected Dear ImGui (v1.91.8) + SDL2 + OpenGL 3.3

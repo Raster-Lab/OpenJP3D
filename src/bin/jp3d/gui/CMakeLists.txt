@@ -87,6 +87,7 @@ find_package(OpenGL REQUIRED)
 add_executable(opj_jp3d_gui
     opj_jp3d_gui.cpp
     gui_theme.cpp
+    gui_volume.cpp
 )
 
 target_include_directories(opj_jp3d_gui PRIVATE
