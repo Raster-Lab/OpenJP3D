@@ -236,7 +236,7 @@ interactive protocol to support volumetric data.
 
 **Goal:** Provide a cross-platform graphical application for interactively testing, visualising, and validating OpenJP3D codec functionality without relying on the command-line tools.
 
-### 8A — Application Framework & UI Shell
+### 8A — Application Framework & UI Shell ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|

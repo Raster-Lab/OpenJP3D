@@ -29,6 +29,7 @@ ctest --test-dir build
 | `ENABLE_OPENMP`   | OFF     | Enable OpenMP multi-threading        |
 | `BUILD_BENCHMARKS`| OFF     | Build the benchmark suite            |
 | `BUILD_FUZZ`     | OFF     | Build libFuzzer harnesses (Clang)    |
+| `BUILD_GUI_TOOLS`| OFF     | Build interactive GUI application (Dear ImGui + SDL2) |
 
 ## Installation
 
