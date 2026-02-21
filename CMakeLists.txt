@@ -23,6 +23,7 @@ option(BUILD_TESTING    "Build and enable CTest test suite"      ON)
 option(BUILD_SHARED_LIBS "Build shared libraries"                OFF)
 option(ENABLE_OPENMP    "Enable OpenMP multi-threading"          OFF)
 option(BUILD_BENCHMARKS "Build the benchmark suite"              OFF)
+option(BUILD_DOC_EXAMPLES "Build documentation example programs" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -56,6 +57,10 @@ endif()
 
 if(BUILD_DOC)
     add_subdirectory(doc)
+endif()
+
+if(BUILD_DOC_EXAMPLES)
+    add_subdirectory(doc/examples)
 endif()
 
 if(BUILD_BENCHMARKS)

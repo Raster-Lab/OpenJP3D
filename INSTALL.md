@@ -20,11 +20,14 @@ ctest --test-dir build
 |-------------------|---------|--------------------------------------|
 | `BUILD_JP3D`      | ON      | Build the core JP3D codec library    |
 | `BUILD_HTJ2K_3D`  | OFF     | Build the HTJ2K 3-D block coder     |
-| `BUILD_JPIP_3D`   | OFF     | Build the JPIP 3-D streaming library |
-| `BUILD_CLI_TOOLS` | OFF     | Build command-line utilities         |
+| `BUILD_JPIP_3D`   | ON      | Build the JPIP 3-D streaming library |
+| `BUILD_CLI_TOOLS` | ON      | Build command-line utilities         |
 | `BUILD_DOC`       | OFF     | Build Doxygen documentation          |
+| `BUILD_DOC_EXAMPLES` | OFF  | Build documentation example programs |
 | `BUILD_TESTING`   | ON      | Build and enable CTest test suite    |
 | `BUILD_SHARED_LIBS`| OFF    | Build shared libraries               |
+| `ENABLE_OPENMP`   | OFF     | Enable OpenMP multi-threading        |
+| `BUILD_BENCHMARKS`| OFF     | Build the benchmark suite            |
 
 ## Installation
 
