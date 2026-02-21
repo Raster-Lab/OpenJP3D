@@ -97,6 +97,15 @@ compression (ISO/IEC 15444-10), built as an extension of the
   - `MsgCallback` function type for codec error/warning/info messages
   - Idempotent `LoadLib` with auto-search via `OPENJP3D_LIBRARY` env var
   - Requires Go ≥ 1.21; enabled via `BUILD_GO_BINDINGS=ON`
+- **Rust bindings** (`rust/openjp3d/`) — Rust crate using `libloading`
+  for runtime `dlopen`/`LoadLibrary` loading; no link-time dependency:
+  - `encode(samples, w, h, d, num_comps, prec, signed, params, cb) → Vec<u8>`
+  - `decode(data, params, cb) → (Vec<i32>, VolumeInfo)`
+  - `transcode_to_ht(src, params, cb) → Vec<u8>`
+  - `EncodeParams` and `DecodeParams` structs; `VolumeInfo` metadata
+  - Callback support via `&dyn Fn(i32, &str)` closures
+  - Idempotent `load_lib` with auto-search via `OPENJP3D_LIBRARY` env var
+  - Enabled via `BUILD_RUST_BINDINGS=ON`
 
 ## Building
 
@@ -131,8 +140,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 11** — R Bindings & Scientific Computing Integration ✅
 - **Phase 12** — MATLAB/Octave Bindings ✅
 - **Phase 13** — Go Bindings ✅
+- **Phase 14** — Rust Bindings ✅
 
-**Current release: v1.0.0** (phases 0–7); phases 8–13 in `[Unreleased]`.
+**Current release: v1.0.0** (phases 0–7); phases 8–14 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

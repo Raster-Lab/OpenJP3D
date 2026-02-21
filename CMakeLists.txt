@@ -31,6 +31,7 @@ option(BUILD_JULIA_BINDINGS "Register Julia binding tests (requires Julia ≥ 1.
 option(BUILD_R_BINDINGS "Register R binding tests (requires R + testthat)" OFF)
 option(BUILD_MATLAB_BINDINGS "Register MATLAB/Octave binding tests (requires Octave or MATLAB)" OFF)
 option(BUILD_GO_BINDINGS "Register Go binding tests (requires Go ≥ 1.21 with CGO_ENABLED=1)" OFF)
+option(BUILD_RUST_BINDINGS "Register Rust binding tests (requires cargo ≥ 1.70)" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -103,6 +104,10 @@ endif()
 
 if(BUILD_GO_BINDINGS)
     add_subdirectory(go)
+endif()
+
+if(BUILD_RUST_BINDINGS)
+    add_subdirectory(rust)
 endif()
 
 # ---------------------------------------------------------------------------
