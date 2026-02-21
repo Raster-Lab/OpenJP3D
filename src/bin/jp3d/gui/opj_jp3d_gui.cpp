@@ -47,6 +47,7 @@ extern "C" {
 #include "gui_theme.h"
 #include "gui_volume.h"
 #include "gui_codec.h"
+#include "gui_roundtrip.h"
 
 /* ================================================================== */
 /*  Log panel ring buffer                                             */
@@ -95,6 +96,9 @@ static GuiVolumeState g_vol;
 
 /* Codec panel state (Phase 8C) */
 static GuiCodecState g_codec;
+
+/* Round-trip / diff / batch / inspector state (Phase 8D) */
+static GuiRoundtripState g_rt;
 
 /* ================================================================== */
 /*  Open-volume dialog state (8B.1)                                   */
@@ -272,7 +276,21 @@ static void draw_menu_bar(void)
                 g_codec.show_transcode = true;
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Round-Trip Test...", NULL, false, false)) {}
+            if (ImGui::MenuItem("Round-Trip Test...", NULL, false,
+                                !g_rt.rt_running.load())) {
+                g_rt.show_roundtrip = true;
+            }
+            if (ImGui::MenuItem("Diff Viewer...", NULL, false,
+                                g_rt.diff.valid)) {
+                g_rt.show_diff = true;
+            }
+            if (ImGui::MenuItem("Batch Test Runner...", NULL, false,
+                                !g_rt.batch_running.load())) {
+                g_rt.show_batch = true;
+            }
+            if (ImGui::MenuItem("Codestream Inspector...")) {
+                g_rt.show_inspector = true;
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Help")) {
@@ -322,7 +340,15 @@ static void draw_toolbar(void)
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
         if (ImGui::Button("Round-Trip")) {
-            gui_log(LOG_INFO, "Toolbar > Round-Trip (not yet implemented)");
+            g_rt.show_roundtrip = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Batch")) {
+            g_rt.show_batch = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Inspector")) {
+            g_rt.show_inspector = true;
         }
         ImGui::SameLine();
 
@@ -729,6 +755,9 @@ int main(int argc, char *argv[])
     /* Initialise codec panel state */
     gui_codec_state_init(&g_codec);
 
+    /* Initialise round-trip state (Phase 8D) */
+    gui_roundtrip_state_init(&g_rt);
+
     gui_log(LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
     gui_log(LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
             IMGUI_VERSION, SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
@@ -826,6 +855,9 @@ int main(int argc, char *argv[])
         /* ---- Tick codec state (poll background tasks) ---- */
         gui_codec_tick(&g_codec);
 
+        /* ---- Tick round-trip state (poll background tasks) ---- */
+        gui_roundtrip_tick(&g_rt);
+
         /* ---- Handle decode result: load into viewer ---- */
         if (g_codec.decode_result && !g_codec.task_running.load()) {
             /* Replace current volume with decoded result */
@@ -865,6 +897,12 @@ int main(int argc, char *argv[])
         gui_codec_draw_transcode_panel(&g_codec);
         gui_codec_draw_progress(&g_codec);
 
+        /* ---- Round-trip / diff / batch / inspector (Phase 8D) ---- */
+        gui_roundtrip_draw_wizard(&g_rt, &g_vol);
+        gui_roundtrip_draw_diff(&g_rt, &g_vol);
+        gui_roundtrip_draw_batch(&g_rt, &g_vol);
+        gui_roundtrip_draw_inspector(&g_rt);
+
         /* ---- Render ---- */
         ImGui::Render();
         int display_w, display_h;
@@ -882,6 +920,7 @@ int main(int argc, char *argv[])
     /* -------------------------------------------------------------- */
     /*  Cleanup                                                       */
     /* -------------------------------------------------------------- */
+    gui_roundtrip_state_free(&g_rt);
     gui_codec_state_free(&g_codec);
     gui_volume_state_free(&g_vol);
 
