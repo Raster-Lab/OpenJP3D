@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 8D: Round-Trip Testing & Validation**
+  - **8D.1 Round-trip test wizard**: One-click encode→decode→compare via
+    `Tools > Round-Trip Test` or toolbar.  Configurable filter (5/3, 9/7),
+    target bit-rate, HTJ2K toggle, and DWT levels.  Background thread runs
+    `opj_jp3d_encode()` then `opj_jp3d_decode()` and reports pass/fail for
+    lossless (bit-exact) with PSNR, MSE, max absolute error, compression
+    ratio, encode time, and decode time.
+  - **8D.2 Diff viewer**: Side-by-side comparison of original and decoded
+    volumes with an error-map overlay.  Axis selector (axial/sagittal/coronal),
+    slice navigation, and configurable difference threshold.  Error map
+    highlights differing voxels in red intensity proportional to absolute
+    difference.  Accessible from the round-trip results via "Open Diff Viewer".
+  - **8D.3 Batch test runner**: Queue multiple encode/decode/round-trip
+    configurations with varying parameters (filter, rate, HTJ2K, DWT levels,
+    tile size).  "Add Defaults" pre-populates lossless, lossy, and HTJ2K
+    configurations.  Results displayed in a sortable table (pass/fail, PSNR,
+    MSE, compression ratio, encode/decode times).  "Export CSV" writes results
+    to `batch_results.csv`.
+  - **8D.4 Codestream inspector**: Tree-view widget showing JP3D codestream
+    structure — SOC, SIZ3D (volume size, tile layout, per-component metadata),
+    COD3D (filter, HTJ2K flag, DWT levels, code-block size, layers), QCD3D
+    (target rate), SOT (tile-part index, data length), SOD, and EOC markers
+    with byte offsets.  Parses any `.jp3d`/`.j3d` file on demand.
+  - New source files: `src/bin/jp3d/gui/gui_roundtrip.h`,
+    `src/bin/jp3d/gui/gui_roundtrip.cpp`.  `CMakeLists.txt` updated to
+    compile them as part of the `opj_jp3d_gui` target.
+
 - **Phase 8C: Encoding & Decoding Controls**
   - **8C.1 Encode panel**: `Tools > Encode` (or toolbar) opens the Encode
     panel with full encoder parameter controls: tile size (X/Y/Z),

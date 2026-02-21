@@ -264,7 +264,7 @@ interactive protocol to support volumetric data.
 | 8C.3 | Transcode panel | Interface for EBCOT ↔ HTJ2K transcoding. Select input codestream, choose target mode, and execute. |
 | 8C.4 | Progress & cancellation | Progress bar with percentage and elapsed time for encode/decode/transcode operations. Support cancellation of long-running operations. |
 
-### 8D — Round-Trip Testing & Validation
+### 8D — Round-Trip Testing & Validation ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|
