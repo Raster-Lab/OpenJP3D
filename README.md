@@ -40,6 +40,12 @@ compression (ISO/IEC 15444-10), built as an extension of the
     and CSV export
   - Codestream inspector: tree-view of JP3D codestream markers (SOC, SIZ3D,
     COD3D, QCD3D, SOT, SOD, EOC) with byte offsets and field details
+  - JPIP 3-D connection dialog: connect to an in-process JPIP server, browse
+    available datasets with dimensions and component info
+  - JPIP sub-volume browser: interactive region-of-interest request with
+    resolution level and quality layer controls, background fetch with timing
+  - JPIP network diagnostics: session statistics including bytes transferred,
+    cache hit ratio, and request/response latency
 
 ## Building
 
@@ -66,7 +72,8 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 8A** — GUI Application Framework & UI Shell ✅
 - **Phase 8B** — GUI Volume Loading & Visualisation ✅
 - **Phase 8C** — GUI Encoding & Decoding Controls ✅
-- **Phase 8D** — GUI Round-Trip Testing & Validation ✅ *(in progress — Phase 8)*
+- **Phase 8D** — GUI Round-Trip Testing & Validation ✅
+- **Phase 8E** — GUI JPIP 3-D Streaming Client ✅ *(in progress — Phase 8)*
 
 **Current release: v1.0.0**
 

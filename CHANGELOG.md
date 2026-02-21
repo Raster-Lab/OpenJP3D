@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 8E: JPIP 3-D Streaming Client**
+  - **8E.1 JPIP connection dialog**: `Tools > JPIP Connection` (or toolbar
+    JPIP button) opens the connection dialog.  Enter a JP3D codestream file
+    path to load it into an in-process JPIP server and open a client session.
+    Displays session ID, number of datasets, and a selectable list of available
+    datasets with dimensions and component count.  Connect/disconnect controls
+    with error reporting.
+  - **8E.2 Interactive sub-volume browsing**: `Tools > JPIP Browser` opens
+    the sub-volume browser panel.  Configure region-of-interest (X/Y/Z offset
+    and size), resolution level, and quality layers.  "Fetch Sub-Volume"
+    submits a JPIP request in a background thread, decodes the response, and
+    displays the result with fetch timing.  "Load into Viewer" transfers the
+    fetched sub-volume into the main viewer for slice/3-D visualisation.
+    Region controls are clamped to dataset extents.
+  - **8E.3 Network diagnostics**: `Tools > JPIP Diagnostics` displays
+    cumulative session statistics: bytes transferred (human-readable KB/MB),
+    total requests sent, cache hits, cache hit ratio (%), last request
+    latency (ms), and average latency (ms).  Reset button clears statistics.
+  - New source files: `src/bin/jp3d/gui/gui_jpip.h`,
+    `src/bin/jp3d/gui/gui_jpip.cpp`.  `CMakeLists.txt` updated to compile
+    them as part of the `opj_jp3d_gui` target and link against `openjpip3d`.
+
 - **Phase 8D: Round-Trip Testing & Validation**
   - **8D.1 Round-trip test wizard**: One-click encode→decode→compare via
     `Tools > Round-Trip Test` or toolbar.  Configurable filter (5/3, 9/7),

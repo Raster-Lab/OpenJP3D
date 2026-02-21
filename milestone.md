@@ -273,7 +273,7 @@ interactive protocol to support volumetric data.
 | 8D.3 | Batch test runner | Queue multiple encode/decode/round-trip jobs with varying parameters. Display results in a table (parameter set, pass/fail, PSNR, compression ratio, encode time, decode time). Export results to CSV. |
 | 8D.4 | Codestream inspector | Visual representation of the JP3D codestream structure (markers, tile parts, packets) similar to `opj_jp3d_dump` output but presented in a tree-view widget. |
 
-### 8E — JPIP 3-D Streaming Client
+### 8E — JPIP 3-D Streaming Client ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|
