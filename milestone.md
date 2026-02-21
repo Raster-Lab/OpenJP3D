@@ -255,7 +255,7 @@ interactive protocol to support volumetric data.
 | 8B.4 | Metadata display | Display volume metadata (dimensions, bit-depth, number of components, tile grid, decomposition levels, compression mode) in the info panel. |
 | 8B.5 | Histogram & statistics | Compute and display voxel intensity histogram, min/max/mean/std-dev statistics for the loaded volume or a user-selected region of interest. |
 
-### 8C — Encoding & Decoding Controls
+### 8C — Encoding & Decoding Controls ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|

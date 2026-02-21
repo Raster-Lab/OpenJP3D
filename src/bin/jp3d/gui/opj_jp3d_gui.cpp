@@ -15,6 +15,8 @@
  *   - File browser / open panel          (Phase 8B.1)
  *   - Volume info + statistics panel     (Phase 8B.4 / 8B.5)
  *   - Slice / volume viewport            (Phase 8B.2 / 8B.3)
+ *   - Encode / decode / transcode panels (Phase 8C.1–8C.3)
+ *   - Progress overlay with cancellation (Phase 8C.4)
  *   - Log / console panel
  */
 
@@ -44,6 +46,7 @@ extern "C" {
 
 #include "gui_theme.h"
 #include "gui_volume.h"
+#include "gui_codec.h"
 
 /* ================================================================== */
 /*  Log panel ring buffer                                             */
@@ -89,6 +92,9 @@ static bool g_running             = true;
 
 /* Central volume state (Phase 8B) */
 static GuiVolumeState g_vol;
+
+/* Codec panel state (Phase 8C) */
+static GuiCodecState g_codec;
 
 /* ================================================================== */
 /*  Open-volume dialog state (8B.1)                                   */
@@ -253,9 +259,18 @@ static void draw_menu_bar(void)
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Tools")) {
-            if (ImGui::MenuItem("Encode...", NULL, false, false)) {}
-            if (ImGui::MenuItem("Decode...", NULL, false, false)) {}
-            if (ImGui::MenuItem("Transcode...", NULL, false, false)) {}
+            if (ImGui::MenuItem("Encode...", NULL, false,
+                                !g_codec.task_running.load())) {
+                g_codec.show_encode = true;
+            }
+            if (ImGui::MenuItem("Decode...", NULL, false,
+                                !g_codec.task_running.load())) {
+                g_codec.show_decode = true;
+            }
+            if (ImGui::MenuItem("Transcode...", NULL, false,
+                                !g_codec.task_running.load())) {
+                g_codec.show_transcode = true;
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Round-Trip Test...", NULL, false, false)) {}
             ImGui::EndMenu();
@@ -293,15 +308,15 @@ static void draw_toolbar(void)
         }
         ImGui::SameLine();
         if (ImGui::Button("Encode")) {
-            gui_log(LOG_INFO, "Toolbar > Encode (not yet implemented)");
+            g_codec.show_encode = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Decode")) {
-            gui_log(LOG_INFO, "Toolbar > Decode (not yet implemented)");
+            g_codec.show_decode = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Transcode")) {
-            gui_log(LOG_INFO, "Toolbar > Transcode (not yet implemented)");
+            g_codec.show_transcode = true;
         }
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -711,6 +726,9 @@ int main(int argc, char *argv[])
     /* Initialise volume state */
     gui_volume_state_init(&g_vol);
 
+    /* Initialise codec panel state */
+    gui_codec_state_init(&g_codec);
+
     gui_log(LOG_INFO, "OpenJP3D GUI started (v%s)", OPJ_JP3D_VERSION);
     gui_log(LOG_INFO, "Dear ImGui %s, SDL %d.%d.%d",
             IMGUI_VERSION, SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
@@ -805,6 +823,32 @@ int main(int argc, char *argv[])
 
         ImGui::End(); /* DockSpace */
 
+        /* ---- Tick codec state (poll background tasks) ---- */
+        gui_codec_tick(&g_codec);
+
+        /* ---- Handle decode result: load into viewer ---- */
+        if (g_codec.decode_result && !g_codec.task_running.load()) {
+            /* Replace current volume with decoded result */
+            gui_volume_state_free(&g_vol);
+            g_vol.vol    = g_codec.decode_result;
+            g_vol.loaded = true;
+            g_vol.is_jp3d     = true;
+            g_vol.htj2k_mode  = false;
+            g_vol.filter_type = OPJ_JP3D_FILTER_53;
+            g_vol.num_resolutions = 0;
+            g_vol.slice_axis  = SLICE_AXIS_Z;
+            g_vol.slice_idx   = 0;
+            g_vol.tex_dirty      = true;
+            g_vol.vol_tex_dirty  = true;
+            g_vol.auto_wl        = true;
+            strncpy(g_vol.filepath, g_codec.dec_input_path,
+                    sizeof(g_vol.filepath) - 1);
+            g_vol.filepath[sizeof(g_vol.filepath) - 1] = '\0';
+            gui_volume_compute_stats(&g_vol);
+            g_codec.decode_result = NULL;
+            gui_log(LOG_INFO, "Decoded volume loaded into viewer.");
+        }
+
         /* ---- Draw panels ---- */
         draw_menu_bar();
         draw_toolbar();
@@ -814,6 +858,12 @@ int main(int argc, char *argv[])
         draw_log_console();
         draw_about_dialog();
         draw_open_dialog();
+
+        /* ---- Codec panels (Phase 8C) ---- */
+        gui_codec_draw_encode_panel(&g_codec, &g_vol);
+        gui_codec_draw_decode_panel(&g_codec, &g_vol);
+        gui_codec_draw_transcode_panel(&g_codec);
+        gui_codec_draw_progress(&g_codec);
 
         /* ---- Render ---- */
         ImGui::Render();
@@ -832,6 +882,7 @@ int main(int argc, char *argv[])
     /* -------------------------------------------------------------- */
     /*  Cleanup                                                       */
     /* -------------------------------------------------------------- */
+    gui_codec_state_free(&g_codec);
     gui_volume_state_free(&g_vol);
 
     ImGui_ImplOpenGL3_Shutdown();
