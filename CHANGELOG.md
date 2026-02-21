@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 10: Julia Bindings & Scientific Computing Integration**
+  - **10.1 Julia package scaffold**: `julia/OpenJP3D.jl/` package with
+    `Project.toml` (Julia ≥ 1.6).  Installable via
+    `Pkg.develop(path="julia/OpenJP3D.jl")`.  Requires no C compilation —
+    pure `ccall`.  BSD-2-Clause licence header on all Julia source files.
+  - **10.2 Shared-library loader** (`lib_path()`): cross-platform loader
+    supporting Linux (`.so`), macOS (`.dylib`), and Windows (`.dll`).
+    Search order: `OPENJP3D_LIBRARY` environment variable → package `lib/`
+    subdirectory → `Libdl.find_library("libopenjp3d")` → bare name.
+    Cached — library path resolved once per process.
+  - **10.3 ccall bindings** (C structs in `OpenJP3D.jl`): Julia `struct`
+    types mirroring `opj_volume_comp_t` (`VolumeComp`), `opj_volume_t`
+    (`Volume`), `opj_jp3d_enc_params_t` (`EncParamsC`), and
+    `opj_jp3d_dec_params_t` (`DecParamsC`).  Mutable structs used for
+    pass-by-reference parameters.  All six public API functions bound via
+    `ccall`: `opj_jp3d_get_version`, `opj_jp3d_create_volume`,
+    `opj_jp3d_destroy_volume`, `opj_jp3d_encode`, `opj_jp3d_decode`,
+    `opj_jp3d_transcode_to_ht`, and `opj_jp3d_free`.
+  - **10.4 High-level Julia API** (`julia/OpenJP3D.jl/src/OpenJP3D.jl`):
+    - `encode(volume [, params]; on_message)` — accepts `(D,H,W)` or
+      `(D,H,W,C)` Julia arrays (element types: `UInt8`, `Int8`, `UInt16`,
+      `Int16`, `Int32`); returns raw JP3D `Vector{UInt8}`.
+    - `decode(data; verbose, on_message)` — accepts `Vector{UInt8}`; returns
+      a Julia array with element type chosen from the encoded bit-depth and
+      signedness; single-component volumes as `(D,H,W)`, multi-component as
+      `(D,H,W,C)`.
+    - `transcode_to_ht(data; params, on_message)` — wraps
+      `opj_jp3d_transcode_to_ht()`; forces `use_htj2k=USE_HTJ2K`.
+    - `get_version()` — returns the native library version string.
+    - `EncodeParams` keyword-argument struct mirrors `opj_jp3d_enc_params_t`
+      with Julia-friendly defaults and a `_to_c()` conversion helper.
+    - Module-level constants: `FILTER_53`, `FILTER_97`, `USE_HTJ2K`,
+      `CS_UNKNOWN`, `CS_SRGB`, `CS_GRAY`, `CS_YUV`, `MSG_INFO`,
+      `MSG_WARNING`, `MSG_ERROR`.
+    - Data-layout helpers (`_to_row_major`, `_from_row_major`) using
+      `permutedims` to bridge Julia column-major ↔ C row-major storage.
+    - Message callback via a module-level `@cfunction` with a thread-local
+      slot; `on_message(level::Int, msg::String)` API.
+  - **10.5 CMake integration** (`julia/CMakeLists.txt`):
+    `BUILD_JULIA_BINDINGS` option added to root `CMakeLists.txt`
+    (default OFF).  When ON, registers a `test_julia_bindings` CTest
+    target running `julia --project=julia/OpenJP3D.jl test/runtests.jl`
+    with `OPENJP3D_LIBRARY` set via generator expressions.  Requires
+    Julia ≥ 1.6 and `BUILD_SHARED_LIBS=ON`; skips gracefully if Julia is
+    not found or the version requirement is not met.
+  - **10.6 Julia test suite** (`julia/OpenJP3D.jl/test/runtests.jl`):
+    100+ test cases covering version string format, all exported constants,
+    `EncodeParams` construction and `_to_c()`, lossless round-trips for all
+    five supported element types, multi-component (3- and 4-channel)
+    volumes, single-slice edge case, non-square dimensions, large volumes
+    (16×16×16), tiled encoding, SOC marker prefix check, HTJ2K round-trip,
+    lossy 9/7 encoding, verbose decode, message callback, `transcode_to_ht`
+    with and without params, data layout correctness (corner voxels,
+    gradient pattern), and error handling (invalid codestream, 2-D/5-D
+    input, `Float32`/`Float64` element types).  Tests auto-skip when the
+    shared library is not available.
+  - **10.7 Package README** (`julia/OpenJP3D.jl/README.md`): installation
+    steps, library search-order documentation, quick-start examples
+    (lossless, lossy, HTJ2K, transcode, callback), and full API reference.
+  - New files: `julia/OpenJP3D.jl/src/OpenJP3D.jl`,
+    `julia/OpenJP3D.jl/Project.toml`, `julia/OpenJP3D.jl/test/runtests.jl`,
+    `julia/OpenJP3D.jl/README.md`, `julia/CMakeLists.txt`.
+    `BUILD_JULIA_BINDINGS` CMake option added to root `CMakeLists.txt`.
+
 - **Phase 9: Python Bindings & NumPy Integration**
   - **9.1 Python package scaffold**: `python/openjp3d/` package with
     `pyproject.toml` (PEP 621) and `setup.py`.  Installable via
