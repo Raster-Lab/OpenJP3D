@@ -46,6 +46,17 @@ compression (ISO/IEC 15444-10), built as an extension of the
     resolution level and quality layer controls, background fetch with timing
   - JPIP network diagnostics: session statistics including bytes transferred,
     cache hit ratio, and request/response latency
+  - Enhanced log console with HH:MM:SS timestamps, severity colour-coding,
+    copy-to-clipboard, and export-to-file; routes all codec messages
+    (`opj_jp3d_msg_callback_t`) to the GUI log automatically
+  - Preferences dialog: persistent settings (default paths, encoder presets,
+    background colour, theme, threads) stored in a platform-appropriate INI
+    file (`~/.config/openjp3d/gui.ini` on Linux)
+  - Configurable keyboard shortcuts for 9 actions (Open, Encode, Decode,
+    Next/Prev Slice, Zoom In/Out, Toggle Theme, Quit) with an interactive
+    key-capture editor; bindings persisted in the preferences INI file
+  - Cross-platform packaging rules: portable ZIP (Windows), DragNDrop DMG
+    with `.app` bundle (macOS), TGZ tarball (Linux)
 
 ## Building
 
@@ -73,7 +84,8 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 8B** — GUI Volume Loading & Visualisation ✅
 - **Phase 8C** — GUI Encoding & Decoding Controls ✅
 - **Phase 8D** — GUI Round-Trip Testing & Validation ✅
-- **Phase 8E** — GUI JPIP 3-D Streaming Client ✅ *(in progress — Phase 8)*
+- **Phase 8E** — GUI JPIP 3-D Streaming Client ✅
+- **Phase 8F** — GUI Logging, Preferences & Platform Support ✅
 
 **Current release: v1.0.0**
 

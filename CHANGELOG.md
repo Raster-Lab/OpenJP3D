@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 8F: Logging, Preferences & Platform Support**
+  - **8F.1 Enhanced log console**: Upgraded the log panel from a basic
+    ring buffer to a full `GuiLogState` system.  Each entry carries a
+    wall-clock timestamp (HH:MM:SS) and severity colour-coding.  New
+    toolbar buttons: **Copy** (copies all visible entries to the system
+    clipboard) and **Export…** (writes visible entries to a user-specified
+    text file via an inline export dialog).  The panel directly implements
+    `opj_jp3d_msg_callback_t` via `gui_log_codec_callback()` so that codec
+    errors, warnings, and info messages are automatically routed to the GUI
+    log from any encode/decode operation.  Thread-safe: the underlying
+    entries vector is mutex-protected for calls from background threads.
+  - **8F.2 Preferences dialog**: `Tools > Preferences` opens a persistent
+    settings dialog grouped into collapsible sections — *Appearance* (theme
+    toggle, viewport background colour), *File Paths* (default open and
+    output directories), *Performance* (thread count slider), and *Default
+    Encoder Preset* (tile size, DWT levels, target rate, filter, HTJ2K,
+    threads).  Settings are persisted in a platform-appropriate INI file:
+    `~/.config/openjp3d/gui.ini` (Linux / XDG), `~/Library/Preferences/
+    openjp3d-gui.ini` (macOS), or `%APPDATA%\openjp3d\gui.ini` (Windows).
+    Preferences are loaded on startup and saved on dialog **Save** or
+    application exit.  The current config file path is shown in the
+    *Configuration File* section for easy location.
+  - **8F.3 Cross-platform packaging**: CMake install rules for
+    `opj_jp3d_gui` added to the GUI `CMakeLists.txt` using
+    `GNUInstallDirs`.  CPack packaging configured per platform: portable
+    **ZIP** archive on Windows, **DragNDrop DMG** with macOS `.app` bundle
+    on macOS (`MACOSX_BUNDLE` target properties set), and **TGZ** tarball
+    on Linux (suitable for repackaging as AppImage or Flatpak).
+  - **8F.4 Configurable keyboard shortcuts**: `Tools > Keyboard Shortcuts`
+    opens a per-action shortcut editor.  Nine actions are configurable:
+    *Open Volume* (default Ctrl+O), *Encode* (E), *Decode* (D),
+    *Next Slice* (→), *Previous Slice* (←), *Zoom In* (=), *Zoom Out* (−),
+    *Toggle Theme* (Ctrl+T), and *Quit* (Ctrl+Q).  Click any binding button
+    to enter capture mode (highlighted in amber); press the desired key
+    combination (Ctrl/Shift/Alt + any named key) to rebind; press Escape to
+    cancel.  **Reset to Defaults** restores all built-in bindings.  Bindings
+    are persisted in the `[shortcuts]` section of the same INI file as
+    preferences and reloaded automatically on startup.  The hardcoded
+    `io.KeyCtrl` shortcut checks in `opj_jp3d_gui.cpp` have been replaced
+    by calls to `gui_shortcuts_check()` throughout the main loop.
+  - New source files: `src/bin/jp3d/gui/gui_log_prefs.h`,
+    `src/bin/jp3d/gui/gui_log_prefs.cpp`.  `CMakeLists.txt` updated to
+    compile them as part of the `opj_jp3d_gui` target and add
+    install/CPack rules (8F.3).
+
 - **Phase 8E: JPIP 3-D Streaming Client**
   - **8E.1 JPIP connection dialog**: `Tools > JPIP Connection` (or toolbar
     JPIP button) opens the connection dialog.  Enter a JP3D codestream file

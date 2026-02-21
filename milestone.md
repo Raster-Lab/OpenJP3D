@@ -232,7 +232,7 @@ interactive protocol to support volumetric data.
 
 ---
 
-## Phase 8 — Interactive GUI Test Application
+## Phase 8 — Interactive GUI Test Application ✅ Complete
 
 **Goal:** Provide a cross-platform graphical application for interactively testing, visualising, and validating OpenJP3D codec functionality without relying on the command-line tools.
 
@@ -281,7 +281,7 @@ interactive protocol to support volumetric data.
 | 8E.2 | Interactive sub-volume browsing | Navigate volumetric data served via JPIP. Request and display sub-volumes interactively. Show cache/download progress per region. |
 | 8E.3 | Network diagnostics | Display JPIP session statistics: bytes transferred, cache hit ratio, request/response latency, number of active sessions. |
 
-### 8F — Logging, Preferences & Platform Support
+### 8F — Logging, Preferences & Platform Support ✅ Complete
 
 | # | Task | Details |
 |---|------|---------|
