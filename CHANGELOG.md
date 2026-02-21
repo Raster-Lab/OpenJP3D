@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 2: HTJ2K high-throughput block coder integration.
+  - **2.1 HT block coder — 3-D** (`opj_ht3d.c` / `opj_ht3d.h`): FBCOT-derived
+    Fast Block Coder with Optimised Truncation adapted for 3-D code-blocks.
+    Uses MEL (Minimum Entropy Length) entropy coding for the significance
+    stream and Exp-Golomb / MagSgn variable-length coding for coefficient
+    magnitudes and signs, following the structure of ISO/IEC 15444-15 extended
+    to three dimensions.
+  - **2.2 Cleanup-pass replacement**: the HT block coder performs a single
+    forward significance + magnitude pass (MEL + MagSgn), replacing the
+    multi-pass EBCOT Tier-1 coder when enabled.
+  - **2.3 API flag**: `OPJ_JP3D_USE_HTJ2K` constant and `use_htj2k` field in
+    `opj_jp3d_enc_params_t`. When set, the encoder uses the HT block coder for
+    every code-block; the decoder auto-detects the coding mode from the COD3D
+    marker in the codestream.
+  - **2.4 Transcoding**: `opj_jp3d_transcode_to_ht()` — losslessly transcode
+    an existing EBCOT or HT JP3D codestream to the HT block coder, preserving
+    tile structure, DWT parameters, and filter selection.
+  - CTest suite expanded with 39 HTJ2K tests covering: HT block-level
+    encode→decode round-trips (all-zero, sparse, alternating, signed, 8-bit,
+    16-bit, large magnitude, 1×1×1 through 8×8×8), full-codec HT round-trips
+    (multi-component, multi-tile), and EBCOT→HT transcoding.
+
 - Phase 1: Core JP3D codec implementation.
   - **1A Data Structures & I/O**: `opj_volume_t`, `opj_volume_comp_t`,
     JP3D codestream marker segments (SOC, SIZ3D, COD3D, QCD3D, SOT, SOD,

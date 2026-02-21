@@ -69,6 +69,7 @@ void opj_jp3d_set_default_encoder_parameters(opj_jp3d_enc_params_t *params)
     params->filter            = OPJ_JP3D_FILTER_53;
     params->num_layers        = 1;
     params->target_rate       = 0.0f; /* lossless */
+    params->use_htj2k         = 0;
     params->verbose           = 0;
 }
 
@@ -139,6 +140,7 @@ opj_jp3d_bool_t opj_jp3d_encode(
     /* COD3D */
     opj_cs3d_write_u16(&buf, (uint16_t)OPJ_CS3D_COD3D);
     opj_cs3d_write_u32(&buf, (uint32_t)p.filter);
+    opj_cs3d_write_u32(&buf, (uint32_t)p.use_htj2k);
     opj_cs3d_write_u32(&buf, p.num_resolutions_x);
     opj_cs3d_write_u32(&buf, p.num_resolutions_y);
     opj_cs3d_write_u32(&buf, p.num_resolutions_z);
@@ -193,7 +195,7 @@ opj_jp3d_bool_t opj_jp3d_encode(
                         tile_data, tw, th, td,
                         p.cblk_width, p.cblk_height, p.cblk_depth,
                         p.num_resolutions_x, p.num_resolutions_y,
-                        p.num_resolutions_z, p.filter, &tile_buf);
+                        p.num_resolutions_z, p.filter, p.use_htj2k, &tile_buf);
                     opj_jp3d_free(tile_data);
 
                     if (!ok) {
@@ -309,6 +311,7 @@ opj_volume_t *opj_jp3d_decode(
         return NULL;
     }
     int32_t  filter = (int32_t)opj_cs3d_read_u32(data, &pos, size, &err);
+    int32_t  use_htj2k = (int32_t)opj_cs3d_read_u32(data, &pos, size, &err);
     uint32_t nx     = opj_cs3d_read_u32(data, &pos, size, &err);
     uint32_t ny     = opj_cs3d_read_u32(data, &pos, size, &err);
     uint32_t nz     = opj_cs3d_read_u32(data, &pos, size, &err);
@@ -430,7 +433,7 @@ opj_volume_t *opj_jp3d_decode(
                 data + pos, tile_data_len, tile_out,
                 tw, th, td,
                 cblk_w, cblk_h, cblk_d,
-                nx, ny, nz, filter)) {
+                nx, ny, nz, filter, use_htj2k)) {
             opj_jp3d_free(tile_out);
             opj_jp3d_destroy_volume(vol);
             return NULL;
@@ -457,4 +460,94 @@ opj_volume_t *opj_jp3d_decode(
     }
 
     return vol;
+}
+
+/* -------------------------------------------------------------------------
+ * Transcode (EBCOT → HT)
+ * ---------------------------------------------------------------------- */
+
+opj_jp3d_bool_t opj_jp3d_transcode_to_ht(
+    const uint8_t               *src_data,
+    size_t                       src_size,
+    const opj_jp3d_enc_params_t *enc_params,
+    uint8_t                    **out_data,
+    size_t                      *out_size,
+    opj_jp3d_msg_callback_t      callback,
+    void                        *callback_data)
+{
+    if (!src_data || src_size < 4 || !out_data || !out_size)
+        return OPJ_JP3D_FALSE;
+
+    /* Step 1: Decode the source codestream */
+    opj_jp3d_dec_params_t dp;
+    opj_jp3d_set_default_decoder_parameters(&dp);
+    opj_volume_t *vol = opj_jp3d_decode(src_data, src_size, &dp,
+                                        callback, callback_data);
+    if (!vol)
+        return OPJ_JP3D_FALSE;
+
+    /* Step 2: Build encoder parameters — start from caller-supplied params
+     * (or defaults) and extract tile/coding params from the source header. */
+    opj_jp3d_enc_params_t ep;
+    if (enc_params) {
+        ep = *enc_params;
+    } else {
+        opj_jp3d_set_default_encoder_parameters(&ep);
+
+        /* Parse source header to recover original tile/coding parameters */
+        size_t pos = 0;
+        int    err = 0;
+
+        /* SOC */
+        (void)opj_cs3d_read_u16(src_data, &pos, src_size, &err);
+        /* SIZ3D */
+        (void)opj_cs3d_read_u16(src_data, &pos, src_size, &err);
+        if (!err) {
+            /* Skip x1,y1,z1,x0,y0,z0 */
+            for (int i = 0; i < 6; i++)
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.tile_width  = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.tile_height = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.tile_depth  = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            uint32_t nc    = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            /* color_space */
+            (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            /* skip per-component metadata */
+            for (uint32_t c = 0; c < nc && !err; c++) {
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err); /* w */
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err); /* h */
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err); /* d */
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err); /* prec */
+                (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err); /* sgnd */
+            }
+            /* COD3D marker */
+            (void)opj_cs3d_read_u16(src_data, &pos, src_size, &err);
+            ep.filter            = (int32_t)opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            /* use_htj2k (already in source — we override below) */
+            (void)opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.num_resolutions_x = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.num_resolutions_y = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.num_resolutions_z = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.cblk_width        = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.cblk_height       = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.cblk_depth        = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            ep.num_layers        = opj_cs3d_read_u32(src_data, &pos, src_size, &err);
+            /* QCD3D marker */
+            (void)opj_cs3d_read_u16(src_data, &pos, src_size, &err);
+            ep.target_rate       = opj_cs3d_read_f32(src_data, &pos, src_size, &err);
+        }
+        if (err) {
+            /* Fall back to defaults — decoded volume is still valid */
+            opj_jp3d_set_default_encoder_parameters(&ep);
+        }
+    }
+
+    /* Force HT block coding */
+    ep.use_htj2k = OPJ_JP3D_USE_HTJ2K;
+
+    /* Step 3: Re-encode with HT block coder */
+    opj_jp3d_bool_t ret = opj_jp3d_encode(vol, &ep, out_data, out_size,
+                                           callback, callback_data);
+    opj_jp3d_destroy_volume(vol);
+    return ret;
 }

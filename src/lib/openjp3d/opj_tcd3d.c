@@ -33,13 +33,14 @@
 #include "opj_tcd3d.h"
 #include "opj_dwt3d.h"
 #include "opj_t1_3d.h"
+#include "opj_ht3d.h"
 #include "opj_t2_3d.h"
 #include "opj_mem.h"
 
 #include <string.h>
 #include <stdlib.h>
 
-/* Upper bound on encoded code-block size:
+/* Upper bound on encoded code-block size for EBCOT:
  * header(13) + planes * ceil(nsamp/8) + sign_ceil(nsamp/8) */
 static size_t cblk_encode_bound(uint32_t w, uint32_t h, uint32_t d)
 {
@@ -48,12 +49,21 @@ static size_t cblk_encode_bound(uint32_t w, uint32_t h, uint32_t d)
     return 13 + 33 * ((nsamp + 7) / 8 + 1);
 }
 
+/* Upper bound for HT-encoded code-block (from opj_ht3d.c logic):
+ * header(18) + MEL worst-case + MagSgn worst-case */
+static size_t cblk_ht_encode_bound(uint32_t w, uint32_t h, uint32_t d)
+{
+    size_t nsamp = (size_t)w * h * d;
+    return 18 + (nsamp * 2 + 7) / 8 + 2 + nsamp * 8;
+}
+
 int opj_tcd3d_encode_tile(
     const int32_t *tile_data,
     uint32_t tw, uint32_t th, uint32_t td,
     uint32_t cblk_w, uint32_t cblk_h, uint32_t cblk_d,
     uint32_t nx, uint32_t ny, uint32_t nz,
     int32_t filter,
+    int32_t use_htj2k,
     opj_buf_t *out)
 {
     size_t nsamp = (size_t)tw * th * td;
@@ -118,11 +128,16 @@ int opj_tcd3d_encode_tile(
                             cbuf[(z * bh + y) * bw + x] =
                                 work[((z0 + z) * th + (y0 + y)) * tw + (x0 + x)];
 
-                size_t ecap = cblk_encode_bound(bw, bh, bd);
+                size_t ecap = use_htj2k ? cblk_ht_encode_bound(bw, bh, bd)
+                                        : cblk_encode_bound(bw, bh, bd);
                 uint8_t *ebuf = (uint8_t *)opj_jp3d_malloc(ecap);
                 if (!ebuf) { opj_jp3d_free(cbuf); goto fail; }
 
-                size_t elen = opj_t1_3d_encode_cblk(cbuf, bw, bh, bd, ebuf, ecap);
+                size_t elen;
+                if (use_htj2k)
+                    elen = opj_ht3d_encode_cblk(cbuf, bw, bh, bd, ebuf, ecap);
+                else
+                    elen = opj_t1_3d_encode_cblk(cbuf, bw, bh, bd, ebuf, ecap);
                 opj_jp3d_free(cbuf);
                 if (elen == 0) { opj_jp3d_free(ebuf); goto fail; }
 
@@ -160,7 +175,8 @@ int opj_tcd3d_decode_tile(
     uint32_t tw, uint32_t th, uint32_t td,
     uint32_t cblk_w, uint32_t cblk_h, uint32_t cblk_d,
     uint32_t nx, uint32_t ny, uint32_t nz,
-    int32_t filter)
+    int32_t filter,
+    int32_t use_htj2k)
 {
     size_t nsamp = (size_t)tw * th * td;
 
@@ -208,11 +224,20 @@ int opj_tcd3d_decode_tile(
                 int32_t *cbuf = (int32_t *)opj_jp3d_malloc(bn * sizeof(int32_t));
                 if (!cbuf) { opj_jp3d_free(work); goto fail; }
 
-                if (!opj_t1_3d_decode_cblk(cblk_bufs[idx], cblk_lens[idx],
-                                             cbuf, bw, bh, bd)) {
-                    opj_jp3d_free(cbuf);
-                    opj_jp3d_free(work);
-                    goto fail;
+                if (use_htj2k) {
+                    if (!opj_ht3d_decode_cblk(cblk_bufs[idx], cblk_lens[idx],
+                                               cbuf, bw, bh, bd)) {
+                        opj_jp3d_free(cbuf);
+                        opj_jp3d_free(work);
+                        goto fail;
+                    }
+                } else {
+                    if (!opj_t1_3d_decode_cblk(cblk_bufs[idx], cblk_lens[idx],
+                                                cbuf, bw, bh, bd)) {
+                        opj_jp3d_free(cbuf);
+                        opj_jp3d_free(work);
+                        goto fail;
+                    }
                 }
 
                 /* Scatter block samples */
