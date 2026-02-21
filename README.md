@@ -14,6 +14,16 @@ compression (ISO/IEC 15444-10), built as an extension of the
 - SIMD-optimised paths for x86-64 (SSE4.1/AVX2) and AArch64 (NEON)
 - Command-line tools: `opj_jp3d_compress`, `opj_jp3d_decompress`,
   `opj_jp3d_dump`, `opj_jp3d_transcode`, `opj_jpip3d_server`
+- **Python bindings** (`python/openjp3d/`) — pure-ctypes package with NumPy
+  integration; no C compilation required:
+  - `openjp3d.encode(numpy_array)` → JP3D bytes
+  - `openjp3d.decode(bytes)` → NumPy array
+  - `openjp3d.transcode_to_ht(bytes)` → HTJ2K JP3D bytes
+  - Supports `uint8`, `int8`, `uint16`, `int16`, `int32` dtypes; single-
+    and multi-component `(D,H,W)` / `(D,H,W,C)` array layouts
+  - `EncodeParams` dataclass with lossless/lossy/HTJ2K configuration
+  - Message callbacks for codec errors/warnings/info
+  - Installable via `pip install -e python/[numpy]`
 - Interactive GUI test application (`opj_jp3d_gui`) built with
   Dear ImGui + SDL2 + OpenGL 3.3 (optional, `BUILD_GUI_TOOLS=ON`):
   - File open dialog for `.jp3d`/`.j3d` codestreams and raw `.raw`/`.vol` volumes
@@ -86,8 +96,9 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 8D** — GUI Round-Trip Testing & Validation ✅
 - **Phase 8E** — GUI JPIP 3-D Streaming Client ✅
 - **Phase 8F** — GUI Logging, Preferences & Platform Support ✅
+- **Phase 9** — Python Bindings & NumPy Integration ✅
 
-**Current release: v1.0.0**
+**Current release: v1.0.0** (phases 0–7); phases 8 and 9 in `[Unreleased]`.
 
 See [milestone.md](milestone.md) for the full implementation plan and
 [CHANGELOG.md](CHANGELOG.md) for detailed change history.

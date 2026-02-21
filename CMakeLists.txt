@@ -26,6 +26,7 @@ option(BUILD_BENCHMARKS "Build the benchmark suite"              OFF)
 option(BUILD_DOC_EXAMPLES "Build documentation example programs" OFF)
 option(BUILD_FUZZ      "Build libFuzzer harnesses (Clang only)" OFF)
 option(BUILD_GUI_TOOLS "Build interactive GUI test application (Dear ImGui + SDL2)" OFF)
+option(BUILD_PYTHON_BINDINGS "Register Python binding tests (requires Python 3 + pytest + NumPy)" OFF)
 
 # ---------------------------------------------------------------------------
 # Global compiler settings
@@ -78,6 +79,10 @@ endif()
 
 if(BUILD_GUI_TOOLS)
     add_subdirectory(src/bin/jp3d/gui)
+endif()
+
+if(BUILD_PYTHON_BINDINGS)
+    add_subdirectory(python)
 endif()
 
 # ---------------------------------------------------------------------------

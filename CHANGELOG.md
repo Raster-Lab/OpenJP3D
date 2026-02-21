@@ -9,7 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Phase 8F: Logging, Preferences & Platform Support**
+- **Phase 9: Python Bindings & NumPy Integration**
+  - **9.1 Python package scaffold**: `python/openjp3d/` package with
+    `pyproject.toml` (PEP 621) and `setup.py`.  Installable via
+    `pip install -e python/[numpy]`.  Requires no C compilation — pure
+    ctypes.  BSD-2-Clause licence header on all Python source files.
+  - **9.2 Shared-library loader** (`python/openjp3d/_lib.py`):
+    cross-platform loader supporting Linux (`.so`), macOS (`.dylib`), and
+    Windows (`.dll`).  Search order: `OPENJP3D_LIBRARY` environment
+    variable → package directory → `ctypes.util.find_library("openjp3d")`.
+    Singleton — loads once per process via module-level cache.
+  - **9.3 ctypes bindings** (`python/openjp3d/_bindings.py`): mirrors
+    `opj_volume_comp_t`, `opj_volume_t`, `opj_jp3d_enc_params_t`, and
+    `opj_jp3d_dec_params_t` as `ctypes.Structure` subclasses with all
+    fields typed.  Full `argtypes` / `restype` annotations on all six
+    public API functions: `opj_jp3d_get_version`, `opj_jp3d_create_volume`,
+    `opj_jp3d_destroy_volume`, `opj_jp3d_encode`, `opj_jp3d_decode`, and
+    `opj_jp3d_transcode_to_ht`.  `MsgCallbackType` wraps the
+    `opj_jp3d_msg_callback_t` function pointer.
+  - **9.4 High-level NumPy API** (`python/openjp3d/__init__.py`):
+    - `encode(volume, params, *, on_message)` — accepts `(D,H,W)` or
+      `(D,H,W,C)` NumPy arrays (dtypes: `uint8`, `int8`, `uint16`,
+      `int16`, `int32`); returns raw JP3D bytes.
+    - `decode(data, *, verbose, on_message)` — accepts bytes; returns a
+      NumPy array with dtype chosen from the encoded bit-depth/signedness;
+      single-component volumes returned as `(D,H,W)`, multi-component as
+      `(D,H,W,C)`.
+    - `transcode_to_ht(data, params, *, on_message)` — wraps
+      `opj_jp3d_transcode_to_ht()`; forces `use_htj2k=USE_HTJ2K`.
+    - `get_version()` — returns the native library version string.
+    - `EncodeParams` dataclass mirrors `opj_jp3d_enc_params_t` with
+      Pythonic defaults and a `_to_c()` conversion method.
+    - Module-level constants: `FILTER_53`, `FILTER_97`, `USE_HTJ2K`,
+      `CS_UNKNOWN`, `CS_SRGB`, `CS_GRAY`, `CS_YUV`.
+  - **9.5 CMake integration** (`python/CMakeLists.txt`):
+    `BUILD_PYTHON_BINDINGS` option added to root `CMakeLists.txt`
+    (default OFF).  When ON, registers a `test_python_bindings` CTest
+    target running `pytest tests/test_python.py` with `OPENJP3D_LIBRARY`
+    and `PYTHONPATH` set via generator expressions.  Requires
+    `BUILD_SHARED_LIBS=ON`; skips gracefully if Python 3, pytest, or
+    NumPy are not found.
+  - **9.6 Python test suite** (`tests/test_python.py`): 40+ pytest test
+    cases covering version string format, constants, `EncodeParams`
+    construction and `_to_c()`, lossless round-trips for all five
+    supported dtypes, multi-component (3- and 4-channel) volumes, single-
+    slice edge case, non-square dimensions, SOC marker prefix check,
+    HTJ2K round-trip, lossy 9/7 encoding, tiled encoding, verbose mode,
+    message callback, `transcode_to_ht` with and without params, and
+    error handling (invalid codestream, 2-D/5-D input, `float32` dtype).
+    Tests auto-skip when the shared library is not available.
+  - **9.7 Package README** (`python/README.md`): installation steps,
+    quick-start examples (lossless, lossy, HTJ2K, transcode), and library
+    search-order documentation.
+  - New files: `python/openjp3d/__init__.py`, `python/openjp3d/_bindings.py`,
+    `python/openjp3d/_lib.py`, `python/pyproject.toml`, `python/setup.py`,
+    `python/README.md`, `python/CMakeLists.txt`, `tests/test_python.py`.
+
+
   - **8F.1 Enhanced log console**: Upgraded the log panel from a basic
     ring buffer to a full `GuiLogState` system.  Each entry carries a
     wall-clock timestamp (HH:MM:SS) and severity colour-coding.  New

@@ -234,8 +234,6 @@ interactive protocol to support volumetric data.
 
 ## Phase 8 — Interactive GUI Test Application ✅ Complete
 
-**Goal:** Provide a cross-platform graphical application for interactively testing, visualising, and validating OpenJP3D codec functionality without relying on the command-line tools.
-
 ### 8A — Application Framework & UI Shell ✅ Complete
 
 | # | Task | Details |
@@ -301,6 +299,35 @@ interactive protocol to support volumetric data.
 
 ---
 
+## Phase 9 — Python Bindings & NumPy Integration ✅ Complete
+
+**Goal:** Expose the OpenJP3D codec to the scientific Python ecosystem via pure-Python
+ctypes-based bindings, enabling encoding and decoding of 3-D volumes directly from NumPy
+arrays without requiring a compiled Python extension.
+
+### Deliverables
+
+| # | Task | Details |
+|---|------|---------|
+| 9.1 | Python package scaffold | `python/openjp3d/` package with `pyproject.toml` and `setup.py`. Installable via `pip install -e .`. BSD-2-Clause licence header on all Python files. |
+| 9.2 | Shared-library loader (`_lib.py`) | Cross-platform loader: checks `OPENJP3D_LIBRARY` env var, then the package directory, then `ctypes.util.find_library()`. Works on Linux (`.so`), macOS (`.dylib`), and Windows (`.dll`). Singleton: loads once per process. |
+| 9.3 | ctypes bindings (`_bindings.py`) | Mirrors all public C structures (`opj_volume_comp_t`, `opj_volume_t`, `opj_jp3d_enc_params_t`, `opj_jp3d_dec_params_t`) as `ctypes.Structure` subclasses. Annotates all public API functions with `argtypes` / `restype`. Defines `MsgCallbackType` for the message callback. |
+| 9.4 | High-level NumPy API (`__init__.py`) | `encode(volume, params, *, on_message)` — accepts `(D,H,W)` or `(D,H,W,C)` NumPy arrays; returns JP3D bytes. `decode(data, *, verbose, on_message)` — accepts bytes; returns NumPy array with correct dtype. `transcode_to_ht(data, params)` — wraps `opj_jp3d_transcode_to_ht()`. `get_version()` — returns native library version. `EncodeParams` dataclass mirrors `opj_jp3d_enc_params_t`. |
+| 9.5 | CMake integration (`python/CMakeLists.txt`) | `BUILD_PYTHON_BINDINGS` CMake option (default OFF). When ON, registers a `test_python_bindings` CTest target that runs `pytest tests/test_python.py` with `OPENJP3D_LIBRARY` and `PYTHONPATH` set automatically. Requires `BUILD_SHARED_LIBS=ON`. |
+| 9.6 | Python test suite (`tests/test_python.py`) | 40+ pytest test cases covering: version string, constants, `EncodeParams` construction and `_to_c()`, lossless round-trips for all supported dtypes (`uint8`, `int8`, `uint16`, `int16`, `int32`), multi-component volumes, single-slice edge case, non-square dimensions, SOC marker check, HTJ2K round-trip, lossy encoding, tiled encoding, message callback, `transcode_to_ht`, and error handling (invalid data, wrong ndim, unsupported dtype). |
+| 9.7 | Package README (`python/README.md`) | Installation instructions, quick-start examples (lossless, lossy, HTJ2K, transcode), library search-order documentation. |
+
+### Exit Criteria
+
+- `pip install -e python/` succeeds without compilation.
+- `pytest tests/test_python.py` passes with the shared library built (`BUILD_SHARED_LIBS=ON`).
+- `openjp3d.encode()` / `openjp3d.decode()` produce lossless round-trips for all supported dtypes.
+- `openjp3d.transcode_to_ht()` produces a decodable codestream.
+- No memory leaks (library-side allocations freed via `opj_jp3d_free()`).
+- Package installs cleanly on Linux, macOS, and Windows.
+
+---
+
 ## Dependency & Risk Summary
 
 | Risk | Mitigation |
@@ -312,6 +339,7 @@ interactive protocol to support volumetric data.
 | Upstream OpenJPEG API changes | Mirror directory layout; integration tested each phase; minimal coupling to internal OpenJPEG symbols. |
 | GUI toolkit dependency size | Select a lightweight toolkit (e.g., Dear ImGui + SDL2); `BUILD_GUI_TOOLS` is OFF by default so the core library remains dependency-free. |
 | Cross-platform GPU rendering | Require only OpenGL 3.3 (widely supported); provide a software-fallback 2-D slice viewer when GPU rendering is unavailable. |
+| Python bindings ABI mismatch | ctypes bindings are validated against the exact C structure layout at test time; `BUILD_SHARED_LIBS=ON` required; `OPENJP3D_LIBRARY` env var allows flexible library location. |
 
 ---
 
@@ -328,7 +356,8 @@ interactive protocol to support volumetric data.
 | 6 | Documentation & Examples | 2–3 weeks |
 | 7 | Integration Testing & Release | 3–4 weeks |
 | 8 | Interactive GUI Test Application | 6–8 weeks |
-| | **Total (sequential)** | **~35–48 weeks** |
+| 9 | Python Bindings & NumPy Integration | 1–2 weeks |
+| | **Total (sequential)** | **~36–50 weeks** |
 
 > Phases 2, 3, and 4 can be partially parallelised after Phase 1 is complete,
 > potentially reducing total wall-clock time by 6–10 weeks.
