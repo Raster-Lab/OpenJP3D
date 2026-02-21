@@ -74,7 +74,7 @@ static int create_test_raw(const char *path, uint32_t w, uint32_t h,
 
     size_t n = (size_t)w * h * d;
     for (size_t i = 0; i < n; i++) {
-        vol->comps[0].data[i] = (int32_t)(i % ((1u << prec) - 1));
+        vol->comps[0].data[i] = (int32_t)(i % (1u << prec));
     }
 
     int ok = opj_raw_io_write(vol, path);
