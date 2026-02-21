@@ -30,6 +30,7 @@ ctest --test-dir build
 | `BUILD_BENCHMARKS`| OFF     | Build the benchmark suite            |
 | `BUILD_FUZZ`     | OFF     | Build libFuzzer harnesses (Clang)    |
 | `BUILD_GUI_TOOLS`| OFF     | Build interactive GUI application (Dear ImGui + SDL2) |
+| `BUILD_PYTHON_BINDINGS` | OFF | Register Python ctypes binding tests (requires Python 3, pytest, NumPy, and `BUILD_SHARED_LIBS=ON`) |
 
 ## Installation
 
