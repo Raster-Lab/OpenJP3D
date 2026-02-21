@@ -43,3 +43,6 @@ __pycache__/
 *.egg-info/
 dist/
 .eggs/
+
+# Rust
+rust/openjp3d/target/
