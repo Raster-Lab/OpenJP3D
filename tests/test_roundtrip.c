@@ -75,6 +75,20 @@ static int volumes_equal(const opj_volume_t *a, const opj_volume_t *b)
     return 1;
 }
 
+/* ---- Error-callback helpers for MT-API-009 ---- */
+static int error_cb_count = 0;
+static opj_jp3d_msg_level_t error_cb_max_level = OPJ_JP3D_MSG_INFO;
+
+static void test_error_cb(opj_jp3d_msg_level_t level, const char *msg,
+                           void *data)
+{
+    (void)msg;
+    (void)data;
+    error_cb_count++;
+    if (level > error_cb_max_level)
+        error_cb_max_level = level;
+}
+
 /** Perform a full encode→decode round-trip and compare. */
 static int do_roundtrip(uint32_t numcomps, uint32_t w, uint32_t h, uint32_t d,
                          uint32_t prec, uint32_t max_val)
@@ -193,6 +207,24 @@ int main(void)
 
     /* 10. Degenerate 1x1x4 */
     ASSERT(do_roundtrip(1, 1, 1, 4, 8, 255));
+
+    /* 11. Error callback is invoked when decoding invalid data (MT-API-009) */
+    {
+        error_cb_count = 0;
+        error_cb_max_level = OPJ_JP3D_MSG_INFO;
+
+        /* Feed garbage data to the decoder. */
+        uint8_t garbage[16] = {0xDE, 0xAD, 0xBE, 0xEF,
+                               0x00, 0x11, 0x22, 0x33,
+                               0x44, 0x55, 0x66, 0x77,
+                               0x88, 0x99, 0xAA, 0xBB};
+        opj_volume_t *bad = opj_jp3d_decode(garbage, sizeof(garbage),
+                                            NULL, test_error_cb, NULL);
+        ASSERT(bad == NULL);                         /* decode must fail */
+        ASSERT(error_cb_count > 0);                  /* callback invoked */
+        ASSERT(error_cb_max_level == OPJ_JP3D_MSG_ERROR); /* error level */
+        if (bad) opj_jp3d_destroy_volume(bad);
+    }
 
     printf("Passed %d/%d tests\n", pass_count, test_count);
     return (pass_count == test_count) ? 0 : 1;

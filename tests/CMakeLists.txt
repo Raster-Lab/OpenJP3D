@@ -112,3 +112,13 @@ if(BUILD_CLI_TOOLS)
     add_test(NAME cli COMMAND test_cli
         $<TARGET_FILE_DIR:opj_jp3d_compress>)
 endif()
+
+# ---------------------------------------------------------------------------
+# GUI smoke test (Phase D — headless Xvfb test, Linux only)
+# ---------------------------------------------------------------------------
+if(BUILD_GUI_TOOLS AND UNIX AND NOT APPLE)
+    add_test(NAME gui_smoke
+        COMMAND ${CMAKE_COMMAND} -E env
+            bash ${CMAKE_SOURCE_DIR}/tests/test_gui.sh
+            $<TARGET_FILE_DIR:opj_jp3d_gui>)
+endif()

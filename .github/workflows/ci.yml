@@ -53,3 +53,96 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --build-config Release --output-on-failure
+
+  # -----------------------------------------------------------------
+  # Minimal build: core library only, all optional features OFF
+  # -----------------------------------------------------------------
+  build-minimal:
+    name: Minimal Build (features off)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (core only)
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_HTJ2K_3D=OFF
+          -DBUILD_JPIP_3D=OFF
+          -DBUILD_CLI_TOOLS=OFF
+          -DBUILD_TESTING=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+  # -----------------------------------------------------------------
+  # Packaging validation: install, pkg-config, find_package, CPack
+  # -----------------------------------------------------------------
+  packaging:
+    name: Packaging Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTING=ON
+          -DBUILD_CLI_TOOLS=ON
+          -DBUILD_JPIP_3D=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Install
+        run: cmake --install build --prefix ${{ runner.temp }}/install
+
+      - name: Validate pkg-config
+        run: |
+          export PKG_CONFIG_PATH=${{ runner.temp }}/install/lib/pkgconfig
+          pkg-config --modversion openjp3d
+          pkg-config --libs openjp3d | grep -q lopenjp3d
+
+      - name: Validate find_package
+        run: |
+          cmake -B /tmp/fptest \
+            -S tests/find_package_test \
+            -DCMAKE_PREFIX_PATH=${{ runner.temp }}/install
+          cmake --build /tmp/fptest
+
+      - name: Validate CPack source tarball
+        run: |
+          cd build && cpack --config CPackSourceConfig.cmake
+          ls -la *.tar.*
+
+  # -----------------------------------------------------------------
+  # GUI smoke test (headless, Linux only)
+  # -----------------------------------------------------------------
+  gui-smoke:
+    name: GUI Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev libgl-dev xvfb xdotool imagemagick
+
+      - name: Configure
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_GUI_TOOLS=ON
+          -DBUILD_CLI_TOOLS=ON
+          -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: GUI Smoke Test
+        run: xvfb-run --auto-servernum bash tests/test_gui.sh build/bin

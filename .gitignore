@@ -46,3 +46,9 @@ dist/
 
 # Rust
 rust/openjp3d/target/
+
+# Generated test data
+/tmp/openjp3d_testdata/
+tests/testdata_out/
+*.jp3d
+*.j3d

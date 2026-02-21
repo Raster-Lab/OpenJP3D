@@ -583,6 +583,48 @@ static void test_multi_session_independence(void)
 }
 
 /* =========================================================================
+ * Test 17 — Server create/load/handle/destroy lifecycle (MT-JPIP-002)
+ *
+ * Verifies that a full JPIP server lifecycle — create, load dataset,
+ * handle a request, destroy — completes without leaks or crashes.
+ * ========================================================================= */
+static void test_server_lifecycle(void)
+{
+    /* Encode a small test volume for the server to serve. */
+    uint8_t *cs = NULL;
+    size_t   cs_sz = 0;
+    ASSERT(encode_small_volume(4, 4, 4, &cs, &cs_sz) == 1);
+    if (!cs) return;
+
+    /* Step 1 — Create server. */
+    opj_jpip3d_server_t *srv = opj_jpip3d_server_create();
+    ASSERT(srv != NULL);
+    if (!srv) { opj_jp3d_free(cs); return; }
+
+    /* Step 2 — Load dataset. */
+    int loaded = opj_jpip3d_server_load_dataset_mem(srv, "life", cs, cs_sz);
+    ASSERT(loaded == 1);
+    opj_jp3d_free(cs);
+
+    /* Step 3 — Handle a request. */
+    opj_jpip3d_request_t req;
+    memset(&req, 0, sizeof(req));
+    strncpy(req.dataset, "life", sizeof(req.dataset) - 1);
+    req.roff3d[0] = 0; req.roff3d[1] = 0; req.roff3d[2] = 0;
+    req.rsiz3d[0] = 4; req.rsiz3d[1] = 4; req.rsiz3d[2] = 4;
+    req.session_id = 100;
+
+    opj_jpip3d_response_t resp;
+    int handled = opj_jpip3d_server_handle_request(srv, &req, &resp);
+    ASSERT(handled == 1);
+    ASSERT(resp.size > 0);
+    if (resp.data) opj_jp3d_free(resp.data);
+
+    /* Step 4 — Clean destroy. */
+    opj_jpip3d_server_destroy(srv);
+}
+
+/* =========================================================================
  * main
  * ========================================================================= */
 
@@ -604,6 +646,7 @@ int main(void)
     test_client_receive_volume();
     test_client_receive_subvolume();
     test_multi_session_independence();
+    test_server_lifecycle();
 
     printf("Passed %d/%d tests\n", pass_count, test_count);
     return (pass_count == test_count) ? 0 : 1;

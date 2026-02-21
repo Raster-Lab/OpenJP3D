@@ -241,24 +241,32 @@ opj_volume_t *opj_jp3d_decode(
     void                        *callback_data)
 {
     (void)params;
-    (void)callback;
-    (void)callback_data;
 
-    if (!data || size < 4)
+/* Helper: invoke the user callback if one was provided. */
+#define DECODE_MSG(lvl, msg) \
+    do { if (callback) callback((lvl), (msg), callback_data); } while (0)
+
+    if (!data || size < 4) {
+        DECODE_MSG(OPJ_JP3D_MSG_ERROR, "decode: invalid input (NULL or too small)");
         return NULL;
+    }
 
     size_t pos = 0;
     int    err = 0;
 
     /* SOC */
     uint16_t marker = opj_cs3d_read_u16(data, &pos, size, &err);
-    if (err || marker != (uint16_t)OPJ_CS3D_SOC)
+    if (err || marker != (uint16_t)OPJ_CS3D_SOC) {
+        DECODE_MSG(OPJ_JP3D_MSG_ERROR, "decode: missing SOC marker");
         return NULL;
+    }
 
     /* SIZ3D */
     marker = opj_cs3d_read_u16(data, &pos, size, &err);
-    if (err || marker != (uint16_t)OPJ_CS3D_SIZ3D)
+    if (err || marker != (uint16_t)OPJ_CS3D_SIZ3D) {
+        DECODE_MSG(OPJ_JP3D_MSG_ERROR, "decode: missing SIZ3D marker");
         return NULL;
+    }
 
     uint32_t x1          = opj_cs3d_read_u32(data, &pos, size, &err);
     uint32_t y1          = opj_cs3d_read_u32(data, &pos, size, &err);
@@ -455,10 +463,12 @@ opj_volume_t *opj_jp3d_decode(
     /* EOC */
     marker = opj_cs3d_read_u16(data, &pos, size, &err);
     if (err || marker != (uint16_t)OPJ_CS3D_EOC) {
+        DECODE_MSG(OPJ_JP3D_MSG_ERROR, "decode: missing EOC marker");
         opj_jp3d_destroy_volume(vol);
         return NULL;
     }
 
+#undef DECODE_MSG
     return vol;
 }
 

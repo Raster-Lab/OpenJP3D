@@ -445,6 +445,116 @@ static int test_custom_decomp(void)
     return files_equal(raw_in, raw_out);
 }
 
+/** 13. Verbose output contains expected content (MT-CLI-011). */
+static int test_verbose_content(void)
+{
+    char raw_in[512], jp3d[512], verb_out[512];
+    snprintf(raw_in,   sizeof(raw_in),   "%s/cli_vc_in.raw",  temp_dir);
+    snprintf(jp3d,     sizeof(jp3d),     "%s/cli_vc.jp3d",    temp_dir);
+    snprintf(verb_out, sizeof(verb_out), "%s/cli_vc_err.txt", temp_dir);
+
+    if (!create_test_raw(raw_in, 4, 4, 4, 8, 0)) return 0;
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd),
+             "%s -i %s -o %s -W 4 -H 4 -D 4 -p 8 -v 2>%s",
+             compress_path, raw_in, jp3d, verb_out);
+    if (system(cmd) != 0) return 0;
+
+    FILE *fp = fopen(verb_out, "r");
+    if (!fp) return 0;
+    char buf[4096];
+    size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+    fclose(fp);
+    buf[n] = '\0';
+
+    /* Verbose output should mention input dimensions and byte count. */
+    if (!strstr(buf, "4") || !strstr(buf, "8-bit")) return 0;
+    if (!strstr(buf, "Encoded")) return 0;
+
+    return 1;
+}
+
+/** 14. Missing input file → non-zero exit and error message (MT-CLI-014). */
+static int test_missing_file(void)
+{
+    char err_out[512];
+    snprintf(err_out, sizeof(err_out), "%s/cli_mf_err.txt", temp_dir);
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd),
+             "%s -i %s/nonexistent_file.raw -o %s/out.jp3d "
+             "-W 4 -H 4 -D 4 -p 8 2>%s",
+             compress_path, temp_dir, temp_dir, err_out);
+    int ret = system(cmd);
+    if (ret == 0) return 0; /* should fail */
+
+    /* Verify error output is non-empty */
+    if (!file_nonempty(err_out)) return 0;
+
+    return 1;
+}
+
+/** 15. Decompress --version contains version string (MT-CLI-016). */
+static int test_decompress_version(void)
+{
+    char ver_out[512];
+    snprintf(ver_out, sizeof(ver_out), "%s/cli_decver.txt", temp_dir);
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "%s --version > %s", decompress_path, ver_out);
+    if (system(cmd) != 0) return 0;
+
+    FILE *fp = fopen(ver_out, "r");
+    if (!fp) return 0;
+    char buf[256];
+    if (!fgets(buf, sizeof(buf), fp)) { fclose(fp); return 0; }
+    fclose(fp);
+
+    if (!strstr(buf, OPJ_JP3D_VERSION)) return 0;
+    return 1;
+}
+
+/** 16. Dump --version contains version string (MT-CLI-017). */
+static int test_dump_version(void)
+{
+    char ver_out[512];
+    snprintf(ver_out, sizeof(ver_out), "%s/cli_dmpver.txt", temp_dir);
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "%s --version > %s", dump_path, ver_out);
+    if (system(cmd) != 0) return 0;
+
+    FILE *fp = fopen(ver_out, "r");
+    if (!fp) return 0;
+    char buf[256];
+    if (!fgets(buf, sizeof(buf), fp)) { fclose(fp); return 0; }
+    fclose(fp);
+
+    if (!strstr(buf, OPJ_JP3D_VERSION)) return 0;
+    return 1;
+}
+
+/** 17. Transcode --version contains version string (MT-CLI-018). */
+static int test_transcode_version(void)
+{
+    char ver_out[512];
+    snprintf(ver_out, sizeof(ver_out), "%s/cli_tcver.txt", temp_dir);
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "%s --version > %s", transcode_path, ver_out);
+    if (system(cmd) != 0) return 0;
+
+    FILE *fp = fopen(ver_out, "r");
+    if (!fp) return 0;
+    char buf[256];
+    if (!fgets(buf, sizeof(buf), fp)) { fclose(fp); return 0; }
+    fclose(fp);
+
+    if (!strstr(buf, OPJ_JP3D_VERSION)) return 0;
+    return 1;
+}
+
 /* ----------------------------------------------------------------------- */
 /* main                                                                    */
 /* ----------------------------------------------------------------------- */
@@ -498,6 +608,11 @@ int main(int argc, char *argv[])
     RUN_TEST(test_verbose_mode);
     RUN_TEST(test_dump_volume_size);
     RUN_TEST(test_custom_decomp);
+    RUN_TEST(test_verbose_content);
+    RUN_TEST(test_missing_file);
+    RUN_TEST(test_decompress_version);
+    RUN_TEST(test_dump_version);
+    RUN_TEST(test_transcode_version);
 
     printf("Passed %d/%d tests\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;
