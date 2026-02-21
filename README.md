@@ -32,6 +32,14 @@ compression (ISO/IEC 15444-10), built as an extension of the
   - Transcode panel for EBCOT ↔ HTJ2K transcoding
   - Progress window with elapsed time and cancellation for long-running
     operations (background threading)
+  - Round-trip test wizard: one-click encode→decode→compare with PSNR/MSE
+    metrics, pass/fail verdict, compression ratio, and timing
+  - Diff viewer: side-by-side original vs decoded comparison with error-map
+    overlay and configurable difference threshold
+  - Batch test runner: queue multiple parameter configurations, results table,
+    and CSV export
+  - Codestream inspector: tree-view of JP3D codestream markers (SOC, SIZ3D,
+    COD3D, QCD3D, SOT, SOD, EOC) with byte offsets and field details
 
 ## Building
 
@@ -57,7 +65,8 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 7** — Integration Testing & Release ✅
 - **Phase 8A** — GUI Application Framework & UI Shell ✅
 - **Phase 8B** — GUI Volume Loading & Visualisation ✅
-- **Phase 8C** — GUI Encoding & Decoding Controls ✅ *(in progress — Phase 8)*
+- **Phase 8C** — GUI Encoding & Decoding Controls ✅
+- **Phase 8D** — GUI Round-Trip Testing & Validation ✅ *(in progress — Phase 8)*
 
 **Current release: v1.0.0**
 

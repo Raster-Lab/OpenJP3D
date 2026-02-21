@@ -89,6 +89,7 @@ add_executable(opj_jp3d_gui
     gui_theme.cpp
     gui_volume.cpp
     gui_codec.cpp
+    gui_roundtrip.cpp
 )
 
 target_include_directories(opj_jp3d_gui PRIVATE
