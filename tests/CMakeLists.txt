@@ -78,14 +78,20 @@ endif()
 # Conformance tests (Phase 7 — Task 7.1)
 # ---------------------------------------------------------------------------
 add_executable(test_conformance test_conformance.c)
-target_link_libraries(test_conformance PRIVATE openjp3d m)
+target_link_libraries(test_conformance PRIVATE openjp3d)
+if(MATH_LIBRARY)
+    target_link_libraries(test_conformance PRIVATE ${MATH_LIBRARY})
+endif()
 add_test(NAME conformance COMMAND test_conformance)
 
 # ---------------------------------------------------------------------------
 # Integration tests (Phase 7 — Task 7.2)
 # ---------------------------------------------------------------------------
 add_executable(test_integration test_integration.c)
-target_link_libraries(test_integration PRIVATE openjp3d m)
+target_link_libraries(test_integration PRIVATE openjp3d)
+if(MATH_LIBRARY)
+    target_link_libraries(test_integration PRIVATE ${MATH_LIBRARY})
+endif()
 add_test(NAME integration COMMAND test_integration)
 
 # ---------------------------------------------------------------------------
@@ -104,5 +110,5 @@ if(BUILD_CLI_TOOLS)
         ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
     target_link_libraries(test_cli PRIVATE openjp3d)
     add_test(NAME cli COMMAND test_cli
-        ${CMAKE_BINARY_DIR}/src/bin/jp3d)
+        $<TARGET_FILE_DIR:opj_jp3d_compress>)
 endif()
