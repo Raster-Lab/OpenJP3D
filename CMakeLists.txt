@@ -16,7 +16,7 @@ project(OpenJP3D
 # ---------------------------------------------------------------------------
 option(BUILD_JP3D       "Build the core JP3D codec library"      ON)
 option(BUILD_HTJ2K_3D   "Build the HTJ2K 3-D block coder"       OFF)
-option(BUILD_JPIP_3D    "Build the JPIP 3-D streaming library"   OFF)
+option(BUILD_JPIP_3D    "Build the JPIP 3-D streaming library"   ON)
 option(BUILD_CLI_TOOLS  "Build command-line utilities"           OFF)
 option(BUILD_DOC        "Build Doxygen documentation"            OFF)
 option(BUILD_TESTING    "Build and enable CTest test suite"      ON)

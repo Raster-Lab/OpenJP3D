@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 3: JPIP Extension for JP3D (Part 9).
+  - **3.1 JPIP 3-D request model**: `opj_jpip3d_request_t` with `fsiz3d`, `roff3d`, `rsiz3d`
+    Z-axis parameters for sub-volume window-of-interest access.
+  - **3.2 JPT/JPP-stream 3-D**: tile-part and precinct-part streaming for 3-D indices
+    via `opj_jpip3d_jpt_write_tile_part()` and `opj_jpip3d_jpp_write_precinct()`.
+  - **3.3 Cache model**: server-side cache tracking delivered 3-D precincts/tiles
+    per session via `opj_jpip3d_cache_t`.
+  - **3.4 Server**: `opj_jpip3d_server_t` handling JP3D datasets, region extraction,
+    and per-session cache management.
+  - **3.5 Client library**: `opj_jpip3d_session_t` for opening sessions, requesting
+    volumetric regions, and receiving decoded sub-volumes via the in-process server API.
+  - **3.6 Metadata embedding**: `opj_jpip3d_metadata_t` wrapping XML strings,
+    serialization/deserialization as JP2/JP3D XML boxes.
+  - Integration tests: request parsing, cache model, metadata boxes, JPT/JPP stream
+    headers, server+client round-trips, multi-session independence.
+
 - Phase 2: HTJ2K high-throughput block coder integration.
   - **2.1 HT block coder — 3-D** (`opj_ht3d.c` / `opj_ht3d.h`): FBCOT-derived
     Fast Block Coder with Optimised Truncation adapted for 3-D code-blocks.
