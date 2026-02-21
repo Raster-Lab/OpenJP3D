@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Test automation plan** (`doc/test-automation-plan.md`): Phased plan (A–E)
+  to automate all 107 manual test procedures from `doc/manual-testing.md`.
+  Includes gap analysis, test data catalog (10 deterministic datasets), CI
+  workflow extensions, headless GUI smoke testing approach (Xvfb), and a full
+  traceability matrix mapping every manual test ID to its automated equivalent.
+
 - **Comprehensive manual testing guide** (`doc/manual-testing.md`): 107 manual
   test procedures covering every user-facing feature — Core C API (13 tests),
   CLI tools (18), GUI application (25), JPIP streaming (5), Python bindings
