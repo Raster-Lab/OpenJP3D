@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 6: Documentation & Examples.
+  - **6.1 API reference**: Comprehensive Doxygen annotations on all public
+    types, functions, and macros in `openjp3d.h` and `openjpip3d.h`.
+  - **6.2 User guide**: `doc/user-guide.md` — building from source, C library
+    API usage, CLI tool usage, advanced options (HTJ2K, lossy, tiling,
+    multi-component, JPIP streaming).
+  - **6.3 Code examples**: Five self-contained C programs in `doc/examples/`:
+    `encode_volume.c`, `decode_volume.c`, `partial_decode.c`,
+    `jpip3d_client.c`, `htj2k_encode.c`. All compile and run successfully.
+    Buildable via `BUILD_DOC_EXAMPLES` CMake option.
+  - **6.4 Architecture document**: `doc/architecture.md` describing internal
+    module structure, data flow (encoding/decoding/JPIP), and extension points.
+  - **6.5 Migration guide**: `doc/migration-from-legacy.md` for users of the
+    deprecated OpenJPEG ≤ 2.4.0 JP3D code, with API mapping table, code
+    examples, and migration checklist.
+  - **6.6 CONTRIBUTING guide**: `CONTRIBUTING.md` with build instructions,
+    test procedures, sanitizer builds, coding conventions, directory structure,
+    and PR workflow.
+  - `BUILD_DOC_EXAMPLES` CMake option added (default OFF).
+  - `INSTALL.md` updated with current build options.
+
 - Phase 5: Command-Line Tools.
   - **5.1 `opj_jp3d_compress`**: CLI tool to encode a raw binary volume into
     a JP3D codestream.  Options: tile size (`-t`), decomposition levels (`-n`),

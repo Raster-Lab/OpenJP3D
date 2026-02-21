@@ -35,7 +35,7 @@ OpenJP3D is under active development. The following phases are complete:
 - **Phase 3** — JPIP Extension for JP3D (Part 9) ✅
 - **Phase 4** — SIMD Optimisation ✅
 - **Phase 5** — Command-Line Tools ✅
-- **Phase 6** — Documentation & Examples *(in progress)*
+- **Phase 6** — Documentation & Examples ✅
 - **Phase 7** — Integration Testing & Release *(planned)*
 
 See [milestone.md](milestone.md) for the full implementation plan and
