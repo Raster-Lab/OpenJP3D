@@ -292,7 +292,7 @@ void gui_jpip_draw_connection(GuiJpipState *js)
             ImGui::Spacing();
             ImGui::SeparatorText("Available Datasets");
 
-            ImGui::BeginChild("DatasetList", ImVec2(0, 0), ImGuiChildFlags_Border,
+            ImGui::BeginChild("DatasetList", ImVec2(0, 0), ImGuiChildFlags_Borders,
                               ImGuiWindowFlags_None);
             for (int i = 0; i < (int)js->datasets.size(); ++i) {
                 const GuiJpipDatasetInfo &ds = js->datasets[i];

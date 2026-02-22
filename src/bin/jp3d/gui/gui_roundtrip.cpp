@@ -1288,7 +1288,7 @@ void gui_roundtrip_draw_inspector(GuiRoundtripState *rs)
 
     if (rs->cs_parsed && !rs->cs_nodes.empty()) {
         ImGui::SeparatorText("Codestream Structure");
-        ImGui::BeginChild("CSTree", ImVec2(0, 0), ImGuiChildFlags_Border,
+        ImGui::BeginChild("CSTree", ImVec2(0, 0), ImGuiChildFlags_Borders,
                           ImGuiWindowFlags_HorizontalScrollbar);
         for (const auto &node : rs->cs_nodes) {
             draw_cs_tree_node(node);

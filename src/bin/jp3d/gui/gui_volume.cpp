@@ -139,7 +139,7 @@ bool gui_volume_load_raw(GuiVolumeState *s,
     s->filter_type    = OPJ_JP3D_FILTER_53;
     s->num_resolutions = 0;
     s->slice_axis = SLICE_AXIS_Z;
-    s->slice_idx  = 0;
+    s->slice_idx  = (int)(p->depth / 2);  /* Start at middle slice */
     s->tex_dirty     = true;
     s->vol_tex_dirty = true;
     s->auto_wl       = true;
@@ -209,7 +209,7 @@ bool gui_volume_load_jp3d(GuiVolumeState *s,
         }
     }
     s->slice_axis = SLICE_AXIS_Z;
-    s->slice_idx  = 0;
+    s->slice_idx  = (int)(vol->comps[0].d / 2);  /* Start at middle slice */
     s->tex_dirty     = true;
     s->vol_tex_dirty = true;
     s->auto_wl       = true;
@@ -337,6 +337,7 @@ void gui_volume_update_slice_texture(GuiVolumeState *s)
     uint32_t W = c0->w, H = c0->h, D = c0->d;
     uint32_t nc = s->vol->numcomps;
 
+
     int tex_w, tex_h;
     switch (s->slice_axis) {
     case SLICE_AXIS_Z: tex_w = (int)W; tex_h = (int)H; break;
@@ -397,17 +398,28 @@ void gui_volume_update_slice_texture(GuiVolumeState *s)
     }
 
     /* Upload to OpenGL */
+
     if (!s->tex_id) {
         glGenTextures(1, &s->tex_id);
     }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glBindTexture(GL_TEXTURE_2D, s->tex_id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+#if defined(__APPLE__)
+    /* macOS Core Profile requires explicit swizzle for RGBA textures */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_BLUE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
+#endif
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
                  tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     glBindTexture(GL_TEXTURE_2D, 0);
+
 
     s->tex_w     = tex_w;
     s->tex_h     = tex_h;
@@ -463,7 +475,11 @@ void gui_volume_build_3d_texture(GuiVolumeState *s)
 /* ---- GLSL source strings ---- */
 
 static const char *kRcVertSrc =
+#if defined(__APPLE__)
+    "#version 150\n"
+#else
     "#version 130\n"
+#endif
     "in  vec2 aPos;\n"
     "out vec2 vUV;\n"
     "void main() {\n"
@@ -472,7 +488,11 @@ static const char *kRcVertSrc =
     "}\n";
 
 static const char *kRcFragSrc =
+#if defined(__APPLE__)
+    "#version 150\n"
+#else
     "#version 130\n"
+#endif
     "uniform sampler3D uVolume;\n"
     "uniform mat4      uInvMVP;\n"
     "uniform float     uDensity;\n"

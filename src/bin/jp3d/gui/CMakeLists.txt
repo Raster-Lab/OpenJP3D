@@ -108,6 +108,8 @@ target_link_libraries(opj_jp3d_gui PRIVATE
 
 # Platform-specific link dependencies
 if(APPLE)
+    # Silence macOS OpenGL deprecation warnings
+    target_compile_definitions(opj_jp3d_gui PRIVATE GL_SILENCE_DEPRECATION)
     # macOS frameworks for SDL2
     target_link_libraries(opj_jp3d_gui PRIVATE
         "-framework Cocoa"

@@ -84,6 +84,15 @@ endif()
 
 if(BUILD_GUI_TOOLS)
     add_subdirectory(src/bin/jp3d/gui)
+
+    # Test data generator for the GUI application
+    add_executable(generate_test_data tools/generate_test_data.c)
+    target_include_directories(generate_test_data PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/lib/openjp3d)
+    target_link_libraries(generate_test_data PRIVATE openjp3d)
+    if(MATH_LIBRARY)
+        target_link_libraries(generate_test_data PRIVATE ${MATH_LIBRARY})
+    endif()
 endif()
 
 if(BUILD_PYTHON_BINDINGS)

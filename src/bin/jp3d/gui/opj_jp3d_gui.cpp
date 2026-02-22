@@ -26,6 +26,15 @@
 #include <cstdarg>
 #include <vector>
 #include <string>
+#include <algorithm>
+
+/* Platform directory listing */
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -99,9 +108,239 @@ static GuiShortcutsState g_shortcuts;
 
 static bool  g_open_dlg_visible    = false;
 static char  g_open_dlg_path[512]  = "";
+static char  g_open_dlg_prev_path[512] = "";   /* tracks path changes */
 static bool  g_open_raw_params_dlg = false;
 static RawOpenParams g_raw_params  = {64, 64, 64, 8, 0, 1};
 static char  g_open_dlg_error[256] = "";
+static bool  g_raw_autodetected    = false;     /* true when params came from auto-detect */
+static int   g_raw_preset_idx      = 0;         /* selected preset index (0 = Custom) */
+
+/* ---- Preset volume dimension profiles ---- */
+struct RawPreset {
+    const char *label;
+    uint32_t w, h, d, prec, numcomps;
+    int sgnd;
+};
+
+static const RawPreset RAW_PRESETS[] = {
+    { "Custom",                      0,   0,   0,  0, 0, 0 },
+    { "32\xc2\xb3  8-bit (tiny)",   32,  32,  32,  8, 1, 0 },
+    { "64\xc2\xb3  8-bit",          64,  64,  64,  8, 1, 0 },
+    { "64\xc2\xb3 16-bit",          64,  64,  64, 16, 1, 0 },
+    { "64x64x32 16-bit",            64,  64,  32, 16, 1, 0 },
+    { "128\xc2\xb3  8-bit",        128, 128, 128,  8, 1, 0 },
+    { "128x128x64  8-bit",         128, 128,  64,  8, 1, 0 },
+    { "256\xc2\xb3  8-bit (CT)",   256, 256, 256,  8, 1, 0 },
+    { "256\xc2\xb3 16-bit (CT)",   256, 256, 256, 16, 1, 0 },
+    { "512x512x128 16-bit (MRI)",  512, 512, 128, 16, 1, 0 },
+    { "512x512x256 16-bit (CT)",   512, 512, 256, 16, 1, 0 },
+    { "512x512x512 16-bit",        512, 512, 512, 16, 1, 0 },
+    { "64\xc2\xb3  8-bit RGB (3c)", 64,  64,  64,  8, 3, 0 },
+    { "256\xc2\xb3  8-bit RGB",    256, 256, 256,  8, 3, 0 },
+};
+static const int NUM_RAW_PRESETS = (int)(sizeof(RAW_PRESETS) / sizeof(RAW_PRESETS[0]));
+
+/**
+ * @brief Extract the base filename (without directory) from a path.
+ */
+static const char *basename_of(const char *path)
+{
+    const char *slash = strrchr(path, '/');
+    const char *bslash = strrchr(path, '\\');
+    const char *last = slash > bslash ? slash : bslash;
+    return last ? last + 1 : path;
+}
+
+/**
+ * @brief Try to auto-detect raw volume parameters from the filename.
+ *
+ * Recognises patterns like:
+ *   name_WxHxD_Nbit.raw     (e.g. sphere_64x64x64_8bit.raw)
+ *   name_WxHxD_Nbit_Mc.raw  (e.g. rgb_64x64x64_8bit_3c.raw)
+ *   name_WxHxD.raw          (e.g. volume_128x128x64.raw — assumes 8-bit)
+ *
+ * Also checks for "xNbit" or "Nbit" to infer precision,
+ * and "Nc" or "Ncomp" to infer component count.
+ *
+ * @return true if at least WxHxD were successfully parsed.
+ */
+static bool autodetect_raw_params_from_filename(const char *path,
+                                                RawOpenParams *out)
+{
+    const char *name = basename_of(path);
+    if (!name || !name[0]) return false;
+
+    /* Work on a mutable lowercase copy */
+    char buf[512];
+    strncpy(buf, name, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    for (char *p = buf; *p; ++p) {
+        if (*p >= 'A' && *p <= 'Z') *p += 32;
+    }
+
+    /* ---- Parse WxHxD ---- */
+    /* Look for a pattern like "64x64x64" or "128x128x64" in the filename */
+    bool found_dims = false;
+    uint32_t w = 0, h = 0, d = 0;
+    const char *s = buf;
+    while (*s) {
+        /* Find a digit that starts a potential WxHxD pattern */
+        if (*s >= '0' && *s <= '9') {
+            char *end1 = NULL;
+            unsigned long v1 = strtoul(s, &end1, 10);
+            if (end1 && (*end1 == 'x' || *end1 == 'X')) {
+                char *end2 = NULL;
+                unsigned long v2 = strtoul(end1 + 1, &end2, 10);
+                if (end2 && (*end2 == 'x' || *end2 == 'X')) {
+                    char *end3 = NULL;
+                    unsigned long v3 = strtoul(end2 + 1, &end3, 10);
+                    if (end3 > end2 + 1 && v1 > 0 && v2 > 0 && v3 > 0) {
+                        w = (uint32_t)v1;
+                        h = (uint32_t)v2;
+                        d = (uint32_t)v3;
+                        found_dims = true;
+                        s = end3;
+                        continue;
+                    }
+                }
+            }
+        }
+        ++s;
+    }
+
+    if (!found_dims) return false;
+
+    out->width  = w;
+    out->height = h;
+    out->depth  = d;
+
+    /* ---- Parse bit depth (e.g. "8bit", "16bit", "32bit") ---- */
+    const char *bp = strstr(buf, "bit");
+    if (bp && bp > buf) {
+        /* Walk backwards from "bit" to find the number */
+        const char *numend = bp;
+        const char *numstart = bp - 1;
+        while (numstart > buf && *(numstart - 1) >= '0' && *(numstart - 1) <= '9')
+            --numstart;
+        if (numstart < numend) {
+            unsigned long prec = strtoul(numstart, NULL, 10);
+            if (prec == 8 || prec == 12 || prec == 16 || prec == 32)
+                out->prec = (uint32_t)prec;
+        }
+    }
+
+    /* ---- Parse component count (e.g. "3c", "3comp", "rgb") ---- */
+    if (strstr(buf, "rgb")) {
+        out->numcomps = 3;
+    } else if (strstr(buf, "rgba")) {
+        out->numcomps = 4;
+    } else {
+        /* Look for Nc pattern (e.g. "_3c") */
+        const char *cp = buf;
+        while (*cp) {
+            if (*cp >= '1' && *cp <= '9') {
+                char *ce = NULL;
+                unsigned long nc = strtoul(cp, &ce, 10);
+                if (ce && (*ce == 'c' || strncmp(ce, "comp", 4) == 0)) {
+                    out->numcomps = (uint32_t)nc;
+                    break;
+                }
+            }
+            ++cp;
+        }
+    }
+
+    /* ---- Signed detection ---- */
+    if (strstr(buf, "signed") || strstr(buf, "_s_") || strstr(buf, "_sgnd"))
+        out->sgnd = 1;
+
+    return true;
+}
+
+/**
+ * @brief Try to guess raw volume dimensions from the file size.
+ *
+ * Assumes 1 component, unsigned.  Tries 8-bit and 16-bit precision.
+ * Prefers cubic dimensions (N³) that exactly match the file size.
+ * Falls back to common medical aspect ratios (e.g. 512×512×N).
+ *
+ * @return true if a plausible match was found.
+ */
+static bool autodetect_raw_params_from_filesize(const char *path,
+                                                RawOpenParams *out)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long fsz = ftell(f);
+    fclose(f);
+    if (fsz <= 0) return false;
+
+    size_t file_bytes = (size_t)fsz;
+
+    /* Try common precisions: 8-bit, then 16-bit */
+    for (uint32_t prec : {8u, 16u}) {
+        uint32_t bps = (prec <= 8) ? 1 : (prec <= 16) ? 2 : 4;
+
+        /* Try to find a perfect cube */
+        for (uint32_t n = 2; n <= 1024; ++n) {
+            size_t vol = (size_t)n * n * n * bps;
+            if (vol == file_bytes) {
+                out->width  = n;
+                out->height = n;
+                out->depth  = n;
+                out->prec   = prec;
+                out->numcomps = 1;
+                out->sgnd   = 0;
+                return true;
+            }
+            if (vol > file_bytes) break;
+        }
+
+        /* Try common medical sizes: 512×512×D, 256×256×D, 128×128×D */
+        static const uint32_t common_wh[] = {512, 256, 128, 64};
+        for (uint32_t wh : common_wh) {
+            size_t slice_bytes = (size_t)wh * wh * bps;
+            if (slice_bytes > 0 && file_bytes % slice_bytes == 0) {
+                uint32_t d = (uint32_t)(file_bytes / slice_bytes);
+                if (d >= 1 && d <= 4096) {
+                    out->width  = wh;
+                    out->height = wh;
+                    out->depth  = d;
+                    out->prec   = prec;
+                    out->numcomps = 1;
+                    out->sgnd   = 0;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @brief Run auto-detection: first try filename, then file size heuristic.
+ */
+static void autodetect_raw_params(const char *path)
+{
+    /* Start with current defaults so partial detection keeps them */
+    RawOpenParams detected = g_raw_params;
+    bool ok = autodetect_raw_params_from_filename(path, &detected);
+    if (!ok) {
+        ok = autodetect_raw_params_from_filesize(path, &detected);
+    }
+    if (ok) {
+        /* Apply if precision was not set by filename, default to 8 */
+        if (detected.prec == 0) detected.prec = 8;
+        if (detected.numcomps == 0) detected.numcomps = 1;
+        g_raw_params     = detected;
+        g_raw_autodetected = true;
+        g_raw_preset_idx = 0; /* Custom */
+    } else {
+        g_raw_autodetected = false;
+    }
+}
 
 /* Detect if a path looks like a JP3D codestream */
 static bool path_is_jp3d(const char *p)
@@ -165,7 +404,7 @@ static void draw_open_dialog(void)
 {
     if (!g_open_dlg_visible) return;
 
-    ImGui::SetNextWindowSize(ImVec2(520, 220), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(560, 340), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Open Volume", &g_open_dlg_visible,
                       ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
@@ -177,13 +416,65 @@ static void draw_open_dialog(void)
     ImGui::Separator();
 
     ImGui::SetNextItemWidth(-1);
-    ImGui::InputText("##path", g_open_dlg_path, sizeof(g_open_dlg_path));
+    if (ImGui::InputText("##path", g_open_dlg_path, sizeof(g_open_dlg_path))) {
+        /* Path changed — trigger auto-detection for raw files */
+        if (strcmp(g_open_dlg_path, g_open_dlg_prev_path) != 0) {
+            strncpy(g_open_dlg_prev_path, g_open_dlg_path, sizeof(g_open_dlg_prev_path) - 1);
+            if (path_is_raw(g_open_dlg_path)) {
+                autodetect_raw_params(g_open_dlg_path);
+            }
+        }
+    }
 
     ImGui::Spacing();
     bool is_raw = path_is_raw(g_open_dlg_path);
 
     if (is_raw) {
-        ImGui::TextDisabled("Raw file detected — set dimensions below:");
+        /* ---- Auto-detect status ---- */
+        if (g_raw_autodetected) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+            ImGui::TextWrapped("\xe2\x9c\x93 Dimensions auto-detected from filename");
+            ImGui::PopStyleColor();
+        } else {
+            ImGui::TextDisabled("Dimensions not detected — select a preset or set manually:");
+        }
+
+        /* ---- Preset dropdown ---- */
+        ImGui::PushItemWidth(280);
+        if (ImGui::BeginCombo("Preset", RAW_PRESETS[g_raw_preset_idx].label)) {
+            for (int i = 0; i < NUM_RAW_PRESETS; ++i) {
+                bool selected = (i == g_raw_preset_idx);
+                if (ImGui::Selectable(RAW_PRESETS[i].label, selected)) {
+                    g_raw_preset_idx = i;
+                    if (i > 0) {
+                        /* Apply preset values */
+                        g_raw_params.width    = RAW_PRESETS[i].w;
+                        g_raw_params.height   = RAW_PRESETS[i].h;
+                        g_raw_params.depth    = RAW_PRESETS[i].d;
+                        g_raw_params.prec     = RAW_PRESETS[i].prec;
+                        g_raw_params.numcomps = RAW_PRESETS[i].numcomps;
+                        g_raw_params.sgnd     = RAW_PRESETS[i].sgnd;
+                        g_raw_autodetected    = false;
+                    }
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Auto-detect")) {
+            autodetect_raw_params(g_open_dlg_path);
+            if (!g_raw_autodetected) {
+                gui_log(GUI_LOG_WARNING,
+                        "Could not auto-detect dimensions for '%s'",
+                        g_open_dlg_path);
+            }
+        }
+
+        /* ---- Dimension fields ---- */
+        ImGui::Spacing();
         ImGui::PushItemWidth(120);
         ImGui::InputInt("Width",     (int *)&g_raw_params.width);
         ImGui::SameLine();
@@ -198,6 +489,16 @@ static void draw_open_dialog(void)
         if (ImGui::Checkbox("Signed", &sgnd))
             g_raw_params.sgnd = sgnd ? 1 : 0;
         ImGui::PopItemWidth();
+
+        /* Reset preset to Custom when user manually edits fields */
+        if (g_raw_preset_idx > 0) {
+            const RawPreset &pr = RAW_PRESETS[g_raw_preset_idx];
+            if (g_raw_params.width != pr.w || g_raw_params.height != pr.h ||
+                g_raw_params.depth != pr.d || g_raw_params.prec != pr.prec ||
+                g_raw_params.numcomps != pr.numcomps || g_raw_params.sgnd != pr.sgnd) {
+                g_raw_preset_idx = 0;
+            }
+        }
         /* Clamp to valid ranges */
         if (g_raw_params.width     < 1) g_raw_params.width     = 1;
         if (g_raw_params.height    < 1) g_raw_params.height    = 1;
@@ -205,6 +506,39 @@ static void draw_open_dialog(void)
         if (g_raw_params.prec      < 1) g_raw_params.prec      = 1;
         if (g_raw_params.prec     > 32) g_raw_params.prec      = 32;
         if (g_raw_params.numcomps < 1)  g_raw_params.numcomps  = 1;
+
+        /* ---- File size vs expected size feedback ---- */
+        if (g_open_dlg_path[0]) {
+            uint32_t bps = (g_raw_params.prec <= 8) ? 1 :
+                           (g_raw_params.prec <= 16) ? 2 : 4;
+            size_t expected = (size_t)g_raw_params.width *
+                              g_raw_params.height *
+                              g_raw_params.depth *
+                              g_raw_params.numcomps * bps;
+            FILE *fcheck = fopen(g_open_dlg_path, "rb");
+            if (fcheck) {
+                fseek(fcheck, 0, SEEK_END);
+                long actual = ftell(fcheck);
+                fclose(fcheck);
+                if (actual > 0) {
+                    ImGui::Spacing();
+                    if ((size_t)actual == expected) {
+                        ImGui::PushStyleColor(ImGuiCol_Text,
+                            ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+                        ImGui::Text("\xe2\x9c\x93 File size matches: %zu bytes",
+                                    expected);
+                        ImGui::PopStyleColor();
+                    } else {
+                        ImGui::PushStyleColor(ImGuiCol_Text,
+                            ImVec4(1.0f, 0.6f, 0.2f, 1.0f));
+                        ImGui::Text("\xe2\x9a\xa0 Size mismatch: file=%ld, "
+                                    "expected=%zu bytes",
+                                    actual, expected);
+                        ImGui::PopStyleColor();
+                    }
+                }
+            }
+        }
     }
 
     ImGui::Spacing();
@@ -391,37 +725,454 @@ static void draw_toolbar(void)
 }
 
 /* ---- file browser / open panel (8B.1) ---- */
+
+/* ---- Directory listing state ---- */
+struct DirEntry {
+    char name[256];
+    bool is_dir;
+    long size;       /* file size in bytes, -1 for dirs */
+};
+
+static char           g_browse_dir[512]  = "";
+static bool           g_browse_needs_scan = true;
+static std::vector<DirEntry> g_browse_entries;
+static char           g_browse_filter[64] = "";  /* filename filter */
+
+/** Determine the test_data/ directory relative to the executable. */
+static void find_test_data_dir(char *out, size_t out_sz)
+{
+    /* Try common locations relative to the build/install tree */
+    const char *candidates[] = {
+        "test_data",
+        "../test_data",
+        "../../test_data",
+        "../../../test_data",
+        "../../../../test_data",
+    };
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
+        FILE *probe = fopen((std::string(candidates[i]) + "/README_TEST_DATA.txt").c_str(), "r");
+        if (probe) {
+            fclose(probe);
+            /* Resolve to a usable path */
+            strncpy(out, candidates[i], out_sz - 1);
+            out[out_sz - 1] = '\0';
+            return;
+        }
+    }
+    /* Fallback: use current directory */
+    strncpy(out, ".", out_sz - 1);
+    out[out_sz - 1] = '\0';
+}
+
+/** Check if filename has a supported volume extension. */
+static bool is_volume_file(const char *name)
+{
+    size_t len = strlen(name);
+    if (len < 4) return false;
+    const char *ext = name + len - 4;
+    if (strcmp(ext, ".raw") == 0) return true;
+    if (strcmp(ext, ".vol") == 0) return true;
+    if (strcmp(ext, ".j3d") == 0) return true;
+    if (len >= 5 && strcmp(name + len - 5, ".jp3d") == 0) return true;
+    return false;
+}
+
+/** Scan a directory and populate g_browse_entries. */
+static void scan_directory(const char *dir)
+{
+    g_browse_entries.clear();
+
+    /* Use SDL's filesystem or platform API to list directory.
+       For portability, we use a simple approach with dirent. */
+#if defined(_WIN32)
+    std::string pattern = std::string(dir) + "\\*";
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA(pattern.c_str(), &fd);
+    if (hFind == INVALID_HANDLE_VALUE) return;
+    do {
+        if (strcmp(fd.cFileName, ".") == 0) continue;
+        DirEntry e;
+        strncpy(e.name, fd.cFileName, sizeof(e.name) - 1);
+        e.name[sizeof(e.name) - 1] = '\0';
+        e.is_dir = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        e.size = e.is_dir ? -1 : (long)((uint64_t)fd.nFileSizeHigh << 32 | fd.nFileSizeLow);
+        g_browse_entries.push_back(e);
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+#else
+    /* POSIX */
+    DIR *dp = opendir(dir);
+    if (!dp) return;
+    struct dirent *de;
+    while ((de = readdir(dp)) != NULL) {
+        if (strcmp(de->d_name, ".") == 0) continue;
+        DirEntry e;
+        strncpy(e.name, de->d_name, sizeof(e.name) - 1);
+        e.name[sizeof(e.name) - 1] = '\0';
+        e.is_dir = (de->d_type == DT_DIR);
+        e.size = -1;
+        if (!e.is_dir) {
+            std::string full = std::string(dir) + "/" + de->d_name;
+            struct stat st;
+            if (stat(full.c_str(), &st) == 0)
+                e.size = (long)st.st_size;
+        }
+        g_browse_entries.push_back(e);
+    }
+    closedir(dp);
+#endif
+
+    /* Sort: directories first (with ".." at top), then files alphabetically */
+    std::sort(g_browse_entries.begin(), g_browse_entries.end(),
+        [](const DirEntry &a, const DirEntry &b) {
+            /* ".." always first */
+            if (strcmp(a.name, "..") == 0) return true;
+            if (strcmp(b.name, "..") == 0) return false;
+            if (a.is_dir != b.is_dir) return a.is_dir;
+            return strcmp(a.name, b.name) < 0;
+        });
+
+    g_browse_needs_scan = false;
+}
+
+/** Format a file size for display. */
+static const char *format_size(long bytes, char *buf, size_t buf_sz)
+{
+    if (bytes < 0) {
+        snprintf(buf, buf_sz, "---");
+    } else if (bytes < 1024) {
+        snprintf(buf, buf_sz, "%ld B", bytes);
+    } else if (bytes < 1024 * 1024) {
+        snprintf(buf, buf_sz, "%.1f KB", bytes / 1024.0);
+    } else {
+        snprintf(buf, buf_sz, "%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+    return buf;
+}
+
 static void draw_file_browser(void)
 {
     if (!g_show_file_browser) return;
-    if (ImGui::Begin("File Browser", &g_show_file_browser)) {
-        ImGui::TextWrapped("Use File > Open Volume (Ctrl+O) or the "
-                           "Open toolbar button to load a volume.");
-        ImGui::Separator();
-
-        if (g_vol.loaded) {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Loaded:");
-            /* Show just the filename part */
-            const char *slash = strrchr(g_vol.filepath, '/');
-#ifdef _WIN32
-            const char *bslash = strrchr(g_vol.filepath, '\\');
-            if (bslash && (!slash || bslash > slash)) slash = bslash;
-#endif
-            ImGui::TextWrapped("%s", slash ? slash + 1 : g_vol.filepath);
-            ImGui::Spacing();
-            if (ImGui::Button("Close Volume")) {
-                gui_volume_state_free(&g_vol);
-                gui_log(GUI_LOG_INFO, "Volume closed.");
-            }
-        } else {
-            ImGui::TextDisabled("(No volume loaded)");
-            ImGui::Spacing();
-            if (ImGui::Button("Open Volume...")) {
-                g_open_dlg_visible  = true;
-                g_open_dlg_error[0] = '\0';
-            }
-        }
+    if (!ImGui::Begin("File Browser", &g_show_file_browser)) {
+        ImGui::End();
+        return;
     }
+
+    /* ---- Currently loaded volume status ---- */
+    if (g_vol.loaded) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
+        const char *slash = strrchr(g_vol.filepath, '/');
+#ifdef _WIN32
+        const char *bslash = strrchr(g_vol.filepath, '\\');
+        if (bslash && (!slash || bslash > slash)) slash = bslash;
+#endif
+        ImGui::Text("\xe2\x9c\x93 %s", slash ? slash + 1 : g_vol.filepath);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Close")) {
+            gui_volume_state_free(&g_vol);
+            gui_log(GUI_LOG_INFO, "Volume closed.");
+        }
+        ImGui::Text("  %ux%ux%u, %u-bit, %u comp%s",
+                     g_vol.vol->comps[0].w, g_vol.vol->comps[0].h,
+                     g_vol.vol->comps[0].d, g_vol.vol->comps[0].prec,
+                     g_vol.vol->numcomps,
+                     g_vol.vol->numcomps > 1 ? "s" : "");
+        ImGui::Separator();
+    }
+
+    /* ---- Tab bar: Test Data | Browse ---- */
+    if (ImGui::BeginTabBar("BrowserTabs")) {
+
+        /* ============================================================ */
+        /*  TAB 1: Test Data — quick-access to generated test volumes   */
+        /* ============================================================ */
+        if (ImGui::BeginTabItem("Test Data")) {
+            static char test_data_dir[512] = "";
+            static bool test_data_scanned = false;
+            static std::vector<DirEntry> test_files;
+
+            /* Find test_data directory on first access */
+            if (!test_data_scanned) {
+                find_test_data_dir(test_data_dir, sizeof(test_data_dir));
+                /* Scan it */
+                test_files.clear();
+#ifndef _WIN32
+                DIR *dp = opendir(test_data_dir);
+                if (dp) {
+                    struct dirent *de;
+                    while ((de = readdir(dp)) != NULL) {
+                        if (de->d_name[0] == '.') continue;
+                        if (!is_volume_file(de->d_name)) continue;
+                        DirEntry e;
+                        strncpy(e.name, de->d_name, sizeof(e.name) - 1);
+                        e.name[sizeof(e.name) - 1] = '\0';
+                        e.is_dir = false;
+                        e.size = -1;
+                        std::string full = std::string(test_data_dir) + "/" + de->d_name;
+                        struct stat st;
+                        if (stat(full.c_str(), &st) == 0)
+                            e.size = (long)st.st_size;
+                        test_files.push_back(e);
+                    }
+                    closedir(dp);
+                }
+#endif
+                std::sort(test_files.begin(), test_files.end(),
+                    [](const DirEntry &a, const DirEntry &b) {
+                        return strcmp(a.name, b.name) < 0;
+                    });
+                test_data_scanned = true;
+            }
+
+            if (test_files.empty()) {
+                ImGui::TextWrapped("No test data found. Run:\n"
+                    "  generate_test_data test_data/\n"
+                    "from the build directory to create test volumes.");
+                if (ImGui::Button("Rescan")) {
+                    test_data_scanned = false;
+                }
+            } else {
+                ImGui::TextDisabled("Click a file to load it instantly:");
+                ImGui::Spacing();
+
+                /* Section: Raw Volumes */
+                if (ImGui::CollapsingHeader("Raw Volumes (.raw)",
+                        ImGuiTreeNodeFlags_DefaultOpen)) {
+                    for (size_t i = 0; i < test_files.size(); ++i) {
+                        const DirEntry &f = test_files[i];
+                        size_t nlen = strlen(f.name);
+                        bool is_raw_file = (nlen >= 4 &&
+                            (strcmp(f.name + nlen - 4, ".raw") == 0 ||
+                             strcmp(f.name + nlen - 4, ".vol") == 0));
+                        if (!is_raw_file) continue;
+
+                        char sz_buf[32];
+                        format_size(f.size, sz_buf, sizeof(sz_buf));
+
+                        /* Auto-detect info for display */
+                        RawOpenParams info = {0, 0, 0, 8, 0, 1};
+                        std::string full_path = std::string(test_data_dir) + "/" + f.name;
+                        bool detected = autodetect_raw_params_from_filename(f.name, &info);
+
+                        ImGui::PushID((int)i);
+                        char label[384];
+                        if (detected) {
+                            snprintf(label, sizeof(label),
+                                "%s  [%ux%ux%u, %u-bit, %uc]  %s",
+                                f.name, info.width, info.height, info.depth,
+                                info.prec ? info.prec : 8,
+                                info.numcomps ? info.numcomps : 1,
+                                sz_buf);
+                        } else {
+                            snprintf(label, sizeof(label), "%s  %s",
+                                     f.name, sz_buf);
+                        }
+
+                        if (ImGui::Selectable(label)) {
+                            /* Auto-detect and load in one click */
+                            strncpy(g_open_dlg_path, full_path.c_str(),
+                                    sizeof(g_open_dlg_path) - 1);
+                            if (detected) {
+                                if (info.prec == 0) info.prec = 8;
+                                if (info.numcomps == 0) info.numcomps = 1;
+                                g_raw_params = info;
+                                g_raw_autodetected = true;
+                            } else {
+                                autodetect_raw_params(full_path.c_str());
+                            }
+                            open_volume(full_path.c_str());
+                            gui_log(GUI_LOG_INFO,
+                                "Test data: loaded %s", f.name);
+                        }
+                        ImGui::PopID();
+                    }
+                }
+
+                /* Section: JP3D Codestreams */
+                if (ImGui::CollapsingHeader("JP3D Codestreams (.jp3d)",
+                        ImGuiTreeNodeFlags_DefaultOpen)) {
+                    for (size_t i = 0; i < test_files.size(); ++i) {
+                        const DirEntry &f = test_files[i];
+                        size_t nlen = strlen(f.name);
+                        bool is_jp3d_file = (nlen >= 5 &&
+                            strcmp(f.name + nlen - 5, ".jp3d") == 0) ||
+                            (nlen >= 4 &&
+                            strcmp(f.name + nlen - 4, ".j3d") == 0);
+                        if (!is_jp3d_file) continue;
+
+                        char sz_buf[32];
+                        format_size(f.size, sz_buf, sizeof(sz_buf));
+
+                        /* Derive description from filename */
+                        const char *desc = "";
+                        if (strstr(f.name, "lossless")) desc = "lossless 5/3";
+                        else if (strstr(f.name, "lossy"))  desc = "lossy 9/7";
+
+                        ImGui::PushID(1000 + (int)i);
+                        char label[384];
+                        if (desc[0]) {
+                            snprintf(label, sizeof(label),
+                                "%s  [%s]  %s", f.name, desc, sz_buf);
+                        } else {
+                            snprintf(label, sizeof(label),
+                                "%s  %s", f.name, sz_buf);
+                        }
+
+                        if (ImGui::Selectable(label)) {
+                            std::string full_path = std::string(test_data_dir) + "/" + f.name;
+                            strncpy(g_open_dlg_path, full_path.c_str(),
+                                    sizeof(g_open_dlg_path) - 1);
+                            open_volume(full_path.c_str());
+                            gui_log(GUI_LOG_INFO,
+                                "Test data: loaded %s", f.name);
+                        }
+                        ImGui::PopID();
+                    }
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("Rescan")) {
+                    test_data_scanned = false;
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("(%s)", test_data_dir);
+            }
+            ImGui::EndTabItem();
+        }
+
+        /* ============================================================ */
+        /*  TAB 2: Browse — general directory file browser              */
+        /* ============================================================ */
+        if (ImGui::BeginTabItem("Browse")) {
+            /* Initialise browse dir to project root on first use */
+            if (g_browse_dir[0] == '\0') {
+                /* Try to find the project root */
+                const char *try_dirs[] = {
+                    ".", "..", "../..", "../../..", "../../../.."
+                };
+                bool found = false;
+                for (size_t i = 0; i < sizeof(try_dirs) / sizeof(try_dirs[0]); ++i) {
+                    std::string check = std::string(try_dirs[i]) + "/CMakeLists.txt";
+                    FILE *fp = fopen(check.c_str(), "r");
+                    if (fp) {
+                        fclose(fp);
+                        strncpy(g_browse_dir, try_dirs[i], sizeof(g_browse_dir) - 1);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) strncpy(g_browse_dir, ".", sizeof(g_browse_dir) - 1);
+                g_browse_needs_scan = true;
+            }
+
+            /* Directory path + Rescan */
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 70);
+            if (ImGui::InputText("##dir", g_browse_dir, sizeof(g_browse_dir),
+                                 ImGuiInputTextFlags_EnterReturnsTrue)) {
+                g_browse_needs_scan = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Scan", ImVec2(60, 0))) {
+                g_browse_needs_scan = true;
+            }
+
+            /* Filter */
+            ImGui::SetNextItemWidth(200);
+            ImGui::InputTextWithHint("##filter", "Filter...",
+                                     g_browse_filter, sizeof(g_browse_filter));
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%d items)", (int)g_browse_entries.size());
+
+            if (g_browse_needs_scan) {
+                scan_directory(g_browse_dir);
+            }
+
+            /* File listing */
+            ImGui::BeginChild("FileList", ImVec2(0, 0), ImGuiChildFlags_Borders,
+                              ImGuiWindowFlags_None);
+            for (size_t i = 0; i < g_browse_entries.size(); ++i) {
+                const DirEntry &e = g_browse_entries[i];
+
+                /* Apply filter */
+                if (g_browse_filter[0]) {
+                    /* Case-insensitive substring search */
+                    char lower_name[256], lower_filt[64];
+                    strncpy(lower_name, e.name, sizeof(lower_name) - 1);
+                    lower_name[sizeof(lower_name) - 1] = '\0';
+                    strncpy(lower_filt, g_browse_filter, sizeof(lower_filt) - 1);
+                    lower_filt[sizeof(lower_filt) - 1] = '\0';
+                    for (char *c = lower_name; *c; ++c)
+                        if (*c >= 'A' && *c <= 'Z') *c += 32;
+                    for (char *c = lower_filt; *c; ++c)
+                        if (*c >= 'A' && *c <= 'Z') *c += 32;
+                    if (!strstr(lower_name, lower_filt))
+                        continue;
+                }
+
+                ImGui::PushID((int)i);
+                if (e.is_dir) {
+                    /* Directory entry — icon + navigate on click */
+                    char dir_label[280];
+                    snprintf(dir_label, sizeof(dir_label),
+                             "\xf0\x9f\x93\x81 %s/", e.name);
+                    if (ImGui::Selectable(dir_label)) {
+                        if (strcmp(e.name, "..") == 0) {
+                            /* Go up */
+                            char *last_sep = strrchr(g_browse_dir, '/');
+#ifdef _WIN32
+                            char *last_bsep = strrchr(g_browse_dir, '\\');
+                            if (last_bsep > last_sep) last_sep = last_bsep;
+#endif
+                            if (last_sep && last_sep != g_browse_dir) {
+                                *last_sep = '\0';
+                            }
+                        } else {
+                            size_t dlen = strlen(g_browse_dir);
+                            if (dlen > 0 && g_browse_dir[dlen - 1] != '/')
+                                strncat(g_browse_dir, "/",
+                                        sizeof(g_browse_dir) - dlen - 1);
+                            strncat(g_browse_dir, e.name,
+                                    sizeof(g_browse_dir) - strlen(g_browse_dir) - 1);
+                        }
+                        g_browse_needs_scan = true;
+                    }
+                } else {
+                    /* File entry */
+                    bool is_vol = is_volume_file(e.name);
+                    char sz_buf[32];
+                    format_size(e.size, sz_buf, sizeof(sz_buf));
+
+                    if (is_vol) {
+                        /* Highlighted selectable for volume files */
+                        char file_label[320];
+                        snprintf(file_label, sizeof(file_label),
+                                 "\xf0\x9f\x93\x84 %s  (%s)", e.name, sz_buf);
+                        if (ImGui::Selectable(file_label)) {
+                            std::string full = std::string(g_browse_dir) + "/" + e.name;
+                            strncpy(g_open_dlg_path, full.c_str(),
+                                    sizeof(g_open_dlg_path) - 1);
+                            /* Auto-detect for raw files */
+                            if (path_is_raw(full.c_str())) {
+                                autodetect_raw_params(full.c_str());
+                            }
+                            open_volume(full.c_str());
+                            gui_log(GUI_LOG_INFO, "Loaded: %s", e.name);
+                        }
+                    } else {
+                        /* Non-volume file — just display, greyed out */
+                        ImGui::TextDisabled("   %s  (%s)", e.name, sz_buf);
+                    }
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
     ImGui::End();
 }
 
